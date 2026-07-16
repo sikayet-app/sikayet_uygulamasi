@@ -5,15 +5,16 @@ import '../providers/report_provider.dart';
 import '../data/models/report.dart';
 import '../core/location_service.dart';
 
-class ReportListTestScreen extends ConsumerWidget {
-  const ReportListTestScreen({super.key});
+
+class ReportListScreen extends ConsumerWidget {
+  const ReportListScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final reportAsync = ref.watch(reportListProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Bildirimler (Test)')),
+      appBar: AppBar(title: const Text('Şikayet Listesi')),
       body: reportAsync.when(
         data: (reports) => ListView.builder(
           itemCount: reports.length,
@@ -22,7 +23,7 @@ class ReportListTestScreen extends ConsumerWidget {
             return ListTile(
               title: Text(report.title),
               subtitle: Text(
-                '${getCategoryLabel(report.category)} • ${getStatusLabel(report.status)}',
+                '${getCategoryLabel(report.category)} & ${getStatusLabel(report.status)}',
               ),
               leading: const Icon(Icons.report_problem_outlined),
             );
@@ -31,30 +32,6 @@ class ReportListTestScreen extends ConsumerWidget {
         error: (error, StackTrace) =>
             Center(child: Text('Bir hata oluştu: $error')),
         loading: () => const Center(child: CircularProgressIndicator()),
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () async {
-          final locationService = LocationService();
-          try {
-            final position = await locationService.getCurrentLocation();
-            if (context.mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text(
-                    'Konum: ${position.latitude}, ${position.longitude}',
-                  ),
-                ),
-              );
-            }
-          } catch (e) {
-            if (context.mounted) {
-              ScaffoldMessenger.of(
-                context,
-              ).showSnackBar(SnackBar(content: Text(e.toString())));
-            }
-          }
-        },
-        child: const Icon(Icons.my_location),
       ),
     );
   }
