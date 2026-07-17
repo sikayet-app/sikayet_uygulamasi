@@ -35,11 +35,12 @@ dependencies:
   flutter_map: ^7.0.2 # açık kaynaklı harita göstermek için
   latlong2: ^0.9.1 # haritada enlem ve boylam verilerini tutmak için
   geolocator: ^13.0.1 # cihazın gps sensörüne bağlanıp kullanıcının anlık konumunu almak için.
-  image_picker: ^1.1.2 # kamerayı açmak veya galeriden fotoğrak seçtirmek için
-  path_provider: ^2.1.4 # çekilen fotoğrafı cihazın hafızasına kalıcı olarak kaydetmek için dosya yollarını bulur.
+  image_picker: ^1.2.3 # kamerayı açmak veya galeriden fotoğrak seçtirmek için
+  path_provider: ^2.1.6 # çekilen fotoğrafı cihazın hafızasına kalıcı olarak kaydetmek için dosya yollarını bulur.
   sqflite: ^2.3.3 # verileri(bildirimleri) cşhazın kendi içinde (yerel db) saklamak için
   uuid: ^4.4.0 # her bildirime benzersiz bir id üretmek için
   intl: ^0.19.0 # terih ve saatleri düzgün formatlamak için.
+  path: ^1.9.1
 
 dev_dependencies:
   flutter_test:

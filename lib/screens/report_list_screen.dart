@@ -1,10 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:sikayet_uygulamasi/core/location_service.dart';
 import '../providers/report_provider.dart';
 import '../data/models/report.dart';
-import '../core/location_service.dart';
-
 
 class ReportListScreen extends ConsumerWidget {
   const ReportListScreen({super.key});
