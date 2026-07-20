@@ -35,7 +35,7 @@ class Report {
     ReportStatus? status,
     double? latitude,
     double? longitude,
-    String? imagePaths,
+    List<String>? imagePaths,
     DateTime? createdAt,
   }) {
     return Report(
@@ -68,7 +68,9 @@ class Report {
       ),
       latitude: (map['latitude'] as num).toDouble(),
       longitude: (map['longitude'] as num).toDouble(),
-      imagePaths: map['imagePaths'] as String,
+      imagePaths: (map['imagePaths'] as String).isEmpty
+          ? []
+          : (map['imagePaths'] as String).split(','),
       createdAt: DateTime.parse(map['createdAt'] as String),
     );
   }
@@ -83,7 +85,7 @@ class Report {
       'status': status.name,
       'latitude': latitude,
       'longitude': longitude,
-      'imagePaths': imagePaths,
+      'imagePaths': imagePaths.join(','),
       'createdAt': createdAt.toIso8601String(),
     };
   }

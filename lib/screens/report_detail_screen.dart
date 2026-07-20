@@ -15,16 +15,23 @@ class ReportDetailScreen extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            if (report.imagePath.isNotEmpty)
-              ClipRRect(
-                borderRadius: BorderRadius.circular(16),
-                child: Image.file(
-                  File(report.imagePath),
-                  height: 250,
-                  width: double.infinity,
-                  fit: BoxFit.cover,
-                ),
+            if (report.imagePaths.isNotEmpty)
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: report.imagePaths.map((image) {
+                  return ClipRRect(
+                    borderRadius: BorderRadius.circular(16),
+                    child: Image.file(
+                      File(image),
+                      height: 100,
+                      width: 110,
+                      fit: BoxFit.cover,
+                    ),
+                  );
+                }).toList(),
               ),
+
             SizedBox(height: 16),
             Text(
               report.description,

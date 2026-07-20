@@ -37,7 +37,7 @@ class DatabaseHelper {
         status TEXT NOT NULL,
         latitude REAL NOT NULL,
         longitude REAL NOT NULL,
-        imagePath TEXT NOT NULL,
+        imagePaths TEXT NOT NULL,
         createdAt TEXT NOT NULL
       )
     ''');

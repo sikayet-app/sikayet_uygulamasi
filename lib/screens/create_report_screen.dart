@@ -26,47 +26,75 @@ class _CreateReportScreenState extends ConsumerState<CreateReportScreen> {
   double? _latitude;
   double? _longitude;
   bool _isLoadingLocation = false;
-  File? _selectedImage;
+  List<File> _selectedImages = [];
 
   Future<void> _pickImage(ImageSource source) async {
-    try{
-    // kamerayı aç
-    final picker = ImagePicker();
-    // kamerayı tetikle
-    final pickedFile = await picker.pickImage(
-      source: source,
-      maxWidth: 1280,
-      imageQuality: 80,
+    if (_selectedImages.length >= 3) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('3 taneden fazla fotoğraf eklenemez.')),
       );
-
-    // iptal kontrolü
-    if (pickedFile == null) return;
-
-    //kalıcı klasörü bul
-    final appDir = await getApplicationDocumentsDirectory();
-
-    final extension = path.extension(pickedFile.path);
-
-    final uniqueFileName = '${const Uuid().v4()}$extension';
-
-    // dosyayı al
-    final savedImage = await File(
-      pickedFile.path,
-    ).copy('${appDir.path}/$uniqueFileName');
-
-    if(mounted) {
-    setState(() {
-      _selectedImage = savedImage;
-    });
+      return;
     }
+    try {
+      if (source == ImageSource.camera) {
+        // kamerayı aç
+        final picker = ImagePicker();
+        // kamerayı tetikle
+        final pickedFile = await picker.pickImage(
+          source: source,
+          maxWidth: 1280,
+          imageQuality: 80,
+        );
+
+        // iptal kontrolü
+        if (pickedFile == null) return;
+
+        //kalıcı klasörü bul
+        final appDir = await getApplicationDocumentsDirectory();
+
+        final extension = path.extension(pickedFile.path);
+
+        final uniqueFileName = '${const Uuid().v4()}$extension';
+
+        // dosyayı al
+        final savedImage = await File(
+          pickedFile.path,
+        ).copy('${appDir.path}/$uniqueFileName');
+
+        if (mounted) {
+          setState(() {
+            _selectedImages.add(savedImage);
+          });
+        } else if (source == ImageSource.gallery) {
+          final pickedFiles = await picker.pickMultiImage();
+          if (pickedFiles.isEmpty) return;
+          final appDir = await getApplicationDocumentsDirectory();
+          for (var pickedFile in pickedFiles) {
+            if (_selectedImages.length >= 3) break;
+
+            final extension = path.extension(pickedFile.path);
+            final uniqueFileName = '${const Uuid().v4()}$extension';
+            // dosyayı al
+            final savedImage = await File(
+              pickedFile.path,
+            ).copy('${appDir.path}/$uniqueFileName');
+
+            if (mounted) {
+              setState(() {
+                _selectedImages.add(savedImage);
+              });
+            }
+          }
+        }
+      }
     } catch (e) {
-      if(mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Fotoğraf eklenemedi: $e')),
-          );
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Fotoğraf eklenemedi: $e')));
       }
     }
-  } 
+  }
 
   void _showImageSourceActionSheet() {
     showModalBottomSheet(
@@ -118,7 +146,7 @@ class _CreateReportScreenState extends ConsumerState<CreateReportScreen> {
           category: _selectedCategory,
           latitude: _latitude ?? 0.0,
           longitude: _longitude ?? 0.0,
-          imagePath: _selectedImage?.path ?? '',
+          imagePaths: _selectedImages.map((image) => image.path).toList(),
           createdAt: DateTime.now(),
         );
         final repository = ref.read(reportRepositoryProvider);
@@ -185,36 +213,63 @@ class _CreateReportScreenState extends ConsumerState<CreateReportScreen> {
               ),
               const SizedBox(height: 16),
 
-              GestureDetector(
-                onTap: _showImageSourceActionSheet,
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: Colors.grey,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  height: 150,
-                  width: double.infinity,
-                  child: _selectedImage == null
-                      ? const Column(
+              _selectedImages.isEmpty
+                  ? GestureDetector(
+                      onTap: _showImageSourceActionSheet,
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: Colors.grey[300],
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        height: 150,
+                        width: double.infinity,
+                        child: const Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Icon(Icons.photo_camera),
-                            Text('Fotoğraf ekle'),
+                            Icon(
+                              Icons.photo_camera,
+                              size: 40,
+                              color: Colors.black54,
+                            ),
+                            SizedBox(height: 8),
+                            Text('Fotoğraf ekle (Maksimum 3)'),
                           ],
-                        )
-                      :ClipRRect(
-                        borderRadius: BorderRadius.circular(12),
-                        child: Image.file(
-                          _selectedImage!,
-                          height: 150,
-                          width: double.infinity,
-                          fit: BoxFit.cover,
+                        ),
+                      ),
+                    )
+                  : Wrap(
+                      spacing: 12,
+                      runSpacing: 12,
+                      children: [
+                        ..._selectedImages.map((image) {
+                          return ClipRRect(
+                            borderRadius: BorderRadius.circular(12),
+                            child: Image.file(
+                              image,
+                              height: 100,
+                              width: 100,
+                              fit: BoxFit.cover,
+                            ),
+                          );
+                        }).toList(),
+                        if (_selectedImages.length < 3)
+                          GestureDetector(
+                            onTap: _showImageSourceActionSheet,
+                            child: Container(
+                              height: 100,
+                              width: 100,
+                              decoration: BoxDecoration(
+                                color: Colors.grey[300],
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: const Icon(
+                                Icons.add_a_photo,
+                                color: Colors.black54,
+                              ),
+                            ),
                           ),
-                      )
-
-                      
-                ),
-              ),
+                      ],
+                    ),
 
               DropdownButtonFormField<ReportCategory>(
                 decoration: const InputDecoration(labelText: 'Kategori'),

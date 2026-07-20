@@ -50,7 +50,7 @@ class LocalReportRepository implements ReportRepository {
         status: ReportStatus.pending,
         latitude: 37.0263,
         longitude: 37.2882,
-        imagePath: '',
+        imagePaths: [],
         createdAt: now.subtract(const Duration(days: 2)),
       ),
       Report(
@@ -61,7 +61,7 @@ class LocalReportRepository implements ReportRepository {
         status: ReportStatus.inProgress,
         latitude: 37.0145,
         longitude: 37.3120,
-        imagePath: '',
+        imagePaths: [],
         createdAt: now.subtract(const Duration(days: 1)),
       ),
       Report(
@@ -72,7 +72,7 @@ class LocalReportRepository implements ReportRepository {
         status: ReportStatus.resolved,
         latitude: 37.0658,
         longitude: 37.3698,
-        imagePath: '',
+        imagePaths: [],
         createdAt: now.subtract(const Duration(days: 5)),
       ),
     ];

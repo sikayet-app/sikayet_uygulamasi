@@ -12,7 +12,7 @@ void main() {
         status: ReportStatus.pending,
         latitude: 36.8000,
         longitude: 34.6333,
-        imagePath: '/data/user/0/com.example/report_images/abc.jpg',
+        imagePaths: ['/data/user/0/com.example/report_images/abc.jpg'],
         createdAt: DateTime(2026, 7, 10, 14, 30),
       );
 
@@ -37,7 +37,7 @@ void main() {
         'status': 'pending',
         'latitude': 36.0,
         'longitude': 34.0,
-        'imagePath': 'p',
+        'imagePaths': 'p',
         'createdAt': DateTime.now().toIso8601String(),
       };
       final report = Report.fromMap(map);
@@ -53,7 +53,7 @@ void main() {
         'status': 'pending',
         'latitude': 36,
         'longitude': 34,
-        'imagePath': 'p',
+        'imagePaths': 'p',
         'createdAt': DateTime.now().toIso8601String(),
       };
       final report = Report.fromMap(map);
@@ -68,7 +68,7 @@ void main() {
         category: ReportCategory.garbage,
         latitude: 1.0,
         longitude: 2.0,
-        imagePath: 'p',
+        imagePaths: ['p'],
         createdAt: DateTime(2026, 1, 1),
       );
 
