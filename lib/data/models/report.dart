@@ -10,7 +10,7 @@ class Report {
   final ReportStatus status;
   final double latitude; //enlem
   final double longitude; //boylam
-  final String imagePath;
+  final List<String> imagePaths;
   final DateTime createdAt;
 
   Report({
@@ -22,7 +22,7 @@ class Report {
     // şikayet ilk oluşturulduğunda her zaman bekleme durumunda
     this.status = ReportStatus.pending,
     required this.longitude,
-    required this.imagePath,
+    required this.imagePaths,
     required this.createdAt,
   });
 
@@ -35,7 +35,7 @@ class Report {
     ReportStatus? status,
     double? latitude,
     double? longitude,
-    String? imagePath,
+    String? imagePaths,
     DateTime? createdAt,
   }) {
     return Report(
@@ -46,7 +46,7 @@ class Report {
       status: status ?? this.status,
       latitude: latitude ?? this.latitude,
       longitude: longitude ?? this.longitude,
-      imagePath: imagePath ?? this.imagePath,
+      imagePaths: imagePaths ?? this.imagePaths,
       createdAt: createdAt ?? this.createdAt,
     );
   }
@@ -68,7 +68,7 @@ class Report {
       ),
       latitude: (map['latitude'] as num).toDouble(),
       longitude: (map['longitude'] as num).toDouble(),
-      imagePath: map['imagePath'] as String,
+      imagePaths: map['imagePaths'] as String,
       createdAt: DateTime.parse(map['createdAt'] as String),
     );
   }
@@ -83,7 +83,7 @@ class Report {
       'status': status.name,
       'latitude': latitude,
       'longitude': longitude,
-      'imagePath': imagePath,
+      'imagePaths': imagePaths,
       'createdAt': createdAt.toIso8601String(),
     };
   }
