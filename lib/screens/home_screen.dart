@@ -5,6 +5,7 @@ import 'package:latlong2/latlong.dart';
 import '../data/models/report.dart';
 import '../core/location_service.dart';
 import '../providers/report_provider.dart';
+import '../core/report_ui_helpers.dart';
 
 // consumer: db ye yeni şikayet gelirse harita bunu anında gösterecek
 // stateful: hafızası olan,zamanla değişebilen. konumum değiştikçe mavi nokta hareket edecek.
@@ -47,17 +48,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     catch (_) {}
   }
 
-  Color _colorForStatus(ReportStatus status) {
-    switch (status) {
-      case ReportStatus.pending:
-        return Colors.red;
-      case ReportStatus.inProgress:
-        return Colors.orange;
-      case ReportStatus.resolved:
-        return Colors.green;
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final reportAsync = ref.watch(reportListProvider);
@@ -98,7 +88,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           onTap: () => _showReportPreview(context, report),
                           child: Icon(
                             Icons.location_pin,
-                            color: _colorForStatus(report.status),
+                            color: colorForStatus(report.status),
                             size: 40,
                           ),
                         ),

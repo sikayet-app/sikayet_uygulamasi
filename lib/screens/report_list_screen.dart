@@ -1,5 +1,8 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:sikayet_uygulamasi/core/report_ui_helpers.dart';
 import '../providers/report_provider.dart';
 import '../data/models/report.dart';
 import 'report_detail_screen.dart';
@@ -14,27 +17,133 @@ class ReportListScreen extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(title: const Text('Şikayet Listesi')),
       body: reportAsync.when(
-        data: (reports) => ListView.builder(
-          itemCount: reports.length,
-          itemBuilder: (context, index) {
-            final report = reports[index];
-            return ListTile(
-              title: Text(report.title),
-              subtitle: Text(
-                '${getCategoryLabel(report.category)} & ${getStatusLabel(report.status)}',
+        data: (reports) {
+          if (reports.isEmpty) {
+            return Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.inbox_outlined, size: 64, color: Colors.grey[400]),
+                  const SizedBox(height: 12),
+                  const Text('Henüz bildirim yok'),
+                ],
               ),
-              leading: const Icon(Icons.report_problem_outlined),
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => ReportDetailScreen(report: report),
-                  ),
-                );
-              },
             );
-          },
-        ),
+          }
+          return ListView.builder(
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            itemCount: reports.length,
+            itemBuilder: (context, index) {
+              final report = reports[index];
+              return Card(
+                margin: EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(12),
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) =>
+                            ReportDetailScreen(report: report),
+                      ),
+                    );
+                  },
+
+                  child: Padding(
+                    padding: const EdgeInsets.all(12),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        report.imagePaths.isNotEmpty
+                            ? ClipRRect(
+                                borderRadius: BorderRadius.circular(8),
+                                child: Image.file(
+                                  File(report.imagePaths.first),
+                                  width: 50,
+                                  height: 50,
+                                  fit: BoxFit.cover,
+                                ),
+                              )
+                            : Container(
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(8),
+                                  color: Colors.grey[200],
+                                ),
+                                width: 50,
+                                height: 50,
+                                child: Icon(Icons.report_problem),
+                                alignment: Alignment.center,
+                              ),
+
+                        const SizedBox(width: 12),
+
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                report.title,
+                                style: Theme.of(context).textTheme.titleMedium,
+                              ),
+
+                              SizedBox(height: 6),
+
+                              Text(
+                                report.description,
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(color: Colors.grey[600]),
+                              ),
+
+                              SizedBox(height: 6),
+
+                              Row(
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 12,
+                                      vertical: 6,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: Colors.grey[200],
+                                      borderRadius: BorderRadius.circular(20),
+                                    ),
+                                    child: Text(
+                                      '${getCategoryLabel(report.category)}',
+                                    ),
+                                  ),
+                                  SizedBox(width: 8),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 12,
+                                      vertical: 6,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      borderRadius: BorderRadius.circular(20),
+                                      color: colorForStatus(report.status),
+                                    ),
+                                    child: Text(
+                                      '${getStatusLabel(report.status)}',
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              );
+            },
+          );
+        },
         error: (error, StackTrace) =>
             Center(child: Text('Bir hata oluştu: $error')),
         loading: () => const Center(child: CircularProgressIndicator()),

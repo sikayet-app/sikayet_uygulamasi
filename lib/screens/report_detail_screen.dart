@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:sikayet_uygulamasi/core/report_ui_helpers.dart';
 import '../data/models/report.dart';
 import 'dart:io';
 
@@ -58,7 +59,7 @@ class ReportDetailScreen extends StatelessWidget {
                     vertical: 6,
                   ),
                   decoration: BoxDecoration(
-                    color: const Color.fromARGB(255, 237, 233, 234),
+                    color: colorForStatus(report.status),
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Text(getStatusLabel(report.status)),
