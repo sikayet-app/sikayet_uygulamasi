@@ -1,6 +1,7 @@
 import 'package:path/path.dart';
 import 'package:sqflite/sqflite.dart';
 import '../models/report.dart';
+import '../models/user.dart';
 
 // bu sınıfın amacı db yi fiziksel olarak cihazda oluşturmak ve sql komutlarını çalıştırmak
 class DatabaseHelper {
@@ -38,9 +39,20 @@ class DatabaseHelper {
         latitude REAL NOT NULL,
         longitude REAL NOT NULL,
         imagePaths TEXT NOT NULL,
-        createdAt TEXT NOT NULL
+        createdAt TEXT NOT NULL,
+        userId TEXT NOT NULL
       )
+      
     ''');
+    await db.execute(''' 
+    CREATE TABLE users (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      email TEXT UNIQUE NOT NULL,
+      passwordHash TEXT NOT NULL,
+      role TEXT NOT NULL
+      )
+      ''');
   }
 
   Future<void> insertReport(Report report) async {
@@ -78,4 +90,42 @@ class DatabaseHelper {
     final result = await db.rawQuery('SELECT COUNT(*) as count FROM reports');
     return Sqflite.firstIntValue(result) ?? 0;
   }
+
+  Future<void> insertUser(User user, String passwordHash) async {
+    final db = await instance.database;
+    final userMap = user.toMap();
+    userMap['passwordHash'] = passwordHash;
+    await db.insert(
+      'users',
+      userMap,
+      conflictAlgorithm: ConflictAlgorithm.abort,
+    );
+  }
+
+  Future<Map<String, dynamic>?> getUserByEmail(String email) async {
+    final db = await instance.database;
+    final results = await db.query(
+      'users',
+      where: 'email=?',
+      whereArgs: [email],
+    );
+    return results.isEmpty ? null : results.first;
+  }
+
+  Future<Map<String, dynamic>?> getUserById(String id) async {
+    final db = await instance.database;
+    final result = await db.query('users', where: 'id = ?', whereArgs: [id]);
+    return result.isEmpty ? null : result.first;
+  }
+
+  Future<bool> hasAdminUser() async {
+    final db = await instance.database;
+    final result = await db.query(
+      'users',
+      where: 'role=?',
+      whereArgs: ['admin'],
+    );
+    return result.isNotEmpty;
+  }
+  
 }

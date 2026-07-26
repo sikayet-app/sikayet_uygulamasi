@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'home_screen.dart';
 import 'report_list_screen.dart';
 import 'create_report_screen.dart';
+import 'profile_screen.dart';
 
 // sekmeler arası geçiş yapacağımız için state
 class MainNavigationScreen extends StatefulWidget {
@@ -18,8 +19,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
   final List<Widget> _screens = [
     const HomeScreen(),
     const ReportListScreen(),
-    const Center(child: Text('İstatistik eklenecek')),
-    const Center(child: Text('Profil eklenecek')),
+    const ProfileScreen(),
   ];
 
   @override
@@ -64,21 +64,11 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
             const SizedBox(width: 40),
 
             IconButton(
-              icon: const Icon(Icons.pie_chart_outline),
+              icon: const Icon(Icons.person_outline),
               color: _currentIndex == 2 ? Colors.blue : Colors.grey,
               onPressed: () {
                 setState(() {
                   _currentIndex = 2;
-                });
-              },
-            ),
-
-            IconButton(
-              icon: const Icon(Icons.person_outline),
-              color: _currentIndex == 3 ? Colors.blue : Colors.grey,
-              onPressed: () {
-                setState(() {
-                  _currentIndex = 3;
                 });
               },
             ),

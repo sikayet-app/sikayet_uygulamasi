@@ -14,6 +14,7 @@ void main() {
         longitude: 34.6333,
         imagePaths: ['/data/user/0/com.example/report_images/abc.jpg'],
         createdAt: DateTime(2026, 7, 10, 14, 30),
+        userId: 'test-user-1'
       );
 
       final map = original.toMap();
@@ -39,6 +40,7 @@ void main() {
         'longitude': 34.0,
         'imagePaths': 'p',
         'createdAt': DateTime.now().toIso8601String(),
+        'userId': 'test-user-1'
       };
       final report = Report.fromMap(map);
       expect(report.category, ReportCategory.other);
@@ -55,6 +57,7 @@ void main() {
         'longitude': 34,
         'imagePaths': 'p',
         'createdAt': DateTime.now().toIso8601String(),
+        'userId': 'test-user-1'
       };
       final report = Report.fromMap(map);
       expect(report.latitude, 36.0);
@@ -70,6 +73,7 @@ void main() {
         longitude: 2.0,
         imagePaths: ['p'],
         createdAt: DateTime(2026, 1, 1),
+        userId: 'test-user-1'
       );
 
       final updated = original.copyWith(status: ReportStatus.resolved);

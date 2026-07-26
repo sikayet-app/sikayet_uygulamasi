@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:sikayet_uygulamasi/providers/auth_provider.dart';
 import 'package:uuid/uuid.dart';
 import '../data/models/report.dart';
 import '../core/location_service.dart';
@@ -10,7 +11,8 @@ import 'package:path/path.dart' as path;
 import 'package:path_provider/path_provider.dart';
 
 class CreateReportScreen extends ConsumerStatefulWidget {
-  const CreateReportScreen({super.key});
+  final Report? existingReport;
+  const CreateReportScreen({super.key, this.existingReport});
 
   @override
   ConsumerState<CreateReportScreen> createState() => _CreateReportScreenState();
@@ -28,6 +30,19 @@ class _CreateReportScreenState extends ConsumerState<CreateReportScreen> {
   bool _isLoadingLocation = false;
   List<File> _selectedImages = [];
 
+  @override
+  void initState() {
+    super.initState();
+    if (widget.existingReport != null) {
+      _title = widget.existingReport!.title;
+      _description = widget.existingReport!.description;
+      _selectedCategory = widget.existingReport!.category;
+      _selectedImages = widget.existingReport!.imagePaths
+          .map((p) => File(p))
+          .toList();
+    }
+  }
+
   Future<void> _pickImage(ImageSource source) async {
     if (_selectedImages.length >= 3) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -36,9 +51,10 @@ class _CreateReportScreenState extends ConsumerState<CreateReportScreen> {
       return;
     }
     try {
+      final picker = ImagePicker();
       if (source == ImageSource.camera) {
         // kamerayı aç
-        final picker = ImagePicker();
+
         // kamerayı tetikle
         final pickedFile = await picker.pickImage(
           source: source,
@@ -65,25 +81,27 @@ class _CreateReportScreenState extends ConsumerState<CreateReportScreen> {
           setState(() {
             _selectedImages.add(savedImage);
           });
-        } else if (source == ImageSource.gallery) {
-          final pickedFiles = await picker.pickMultiImage();
-          if (pickedFiles.isEmpty) return;
-          final appDir = await getApplicationDocumentsDirectory();
-          for (var pickedFile in pickedFiles) {
-            if (_selectedImages.length >= 3) break;
+        }
+      }
 
-            final extension = path.extension(pickedFile.path);
-            final uniqueFileName = '${const Uuid().v4()}$extension';
-            // dosyayı al
-            final savedImage = await File(
-              pickedFile.path,
-            ).copy('${appDir.path}/$uniqueFileName');
+      if (source == ImageSource.gallery) {
+        final pickedFiles = await picker.pickMultiImage();
+        if (pickedFiles.isEmpty) return;
+        final appDir = await getApplicationDocumentsDirectory();
+        for (var pickedFile in pickedFiles) {
+          if (_selectedImages.length >= 3) break;
 
-            if (mounted) {
-              setState(() {
-                _selectedImages.add(savedImage);
-              });
-            }
+          final extension = path.extension(pickedFile.path);
+          final uniqueFileName = '${const Uuid().v4()}$extension';
+          // dosyayı al
+          final savedImage = await File(
+            pickedFile.path,
+          ).copy('${appDir.path}/$uniqueFileName');
+
+          if (mounted) {
+            setState(() {
+              _selectedImages.add(savedImage);
+            });
           }
         }
       }
@@ -133,27 +151,35 @@ class _CreateReportScreenState extends ConsumerState<CreateReportScreen> {
       });
 
       try {
-        final locationService = LocationService();
-        final position = await locationService.getCurrentLocation();
-        _latitude = position.latitude;
-        _longitude = position.longitude;
-
+        if (widget.existingReport == null) {
+          final locationService = LocationService();
+          final position = await locationService.getCurrentLocation();
+          _latitude = position.latitude;
+          _longitude = position.longitude;
+        }
         _formKey.currentState!.save();
-        final newReport = Report(
-          id: const Uuid().v4(),
+        final currentUser = ref.read(currentUserProvider);
+        final reportToSave = Report(
+          id: widget.existingReport?.id ?? const Uuid().v4(),
           title: _title,
           description: _description,
           category: _selectedCategory,
-          latitude: _latitude ?? 0.0,
-          longitude: _longitude ?? 0.0,
+          status: widget.existingReport?.status ?? ReportStatus.pending,
+          latitude: widget.existingReport?.latitude ?? (_latitude ?? 0.0),
+          longitude: widget.existingReport?.longitude ?? (_longitude ?? 0.0),
           imagePaths: _selectedImages.map((image) => image.path).toList(),
-          createdAt: DateTime.now(),
+          createdAt: widget.existingReport?.createdAt ?? DateTime.now(),
+          userId: widget.existingReport?.userId ?? currentUser!.id,
         );
         final repository = ref.read(reportRepositoryProvider);
-        await repository.addReport(newReport);
+        if (widget.existingReport != null) {
+          await repository.updateReport(reportToSave);
+        } else {
+          await repository.addReport(reportToSave);
+        }
         ref.invalidate(reportListProvider);
         if (context.mounted) {
-          Navigator.of(context).pop();
+          Navigator.of(context).pop(reportToSave);
         }
       } catch (e) {
         if (context.mounted) {
@@ -174,7 +200,13 @@ class _CreateReportScreenState extends ConsumerState<CreateReportScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Yeni Bildirimler oluştur')),
+      appBar: AppBar(
+        title: Text(
+          widget.existingReport != null
+              ? 'Bildirimi Düzenle'
+              : 'Yeni Bildirimler Oluştur',
+        ),
+      ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Form(
@@ -182,6 +214,7 @@ class _CreateReportScreenState extends ConsumerState<CreateReportScreen> {
           child: ListView(
             children: [
               TextFormField(
+                initialValue: _title,
                 decoration: const InputDecoration(labelText: 'Başlık'),
                 validator: (value) {
                   if (value == null || value.isEmpty) {
@@ -196,6 +229,7 @@ class _CreateReportScreenState extends ConsumerState<CreateReportScreen> {
               const SizedBox(height: 16),
 
               TextFormField(
+                initialValue: _description,
                 decoration: const InputDecoration(
                   labelText: 'Açıklama',
                   alignLabelWithHint: true,
@@ -241,17 +275,45 @@ class _CreateReportScreenState extends ConsumerState<CreateReportScreen> {
                       spacing: 12,
                       runSpacing: 12,
                       children: [
-                        ..._selectedImages.map((image) {
-                          return ClipRRect(
-                            borderRadius: BorderRadius.circular(12),
-                            child: Image.file(
-                              image,
-                              height: 100,
-                              width: 100,
-                              fit: BoxFit.cover,
-                            ),
+                        ...List.generate(_selectedImages.length, (index) {
+                          return Stack(
+                            clipBehavior: Clip.none,
+                            children: [
+                              ClipRRect(
+                                borderRadius: BorderRadius.circular(12),
+                                child: Image.file(
+                                  _selectedImages[index],
+                                  height: 100,
+                                  width: 100,
+                                  fit: BoxFit.cover,
+                                ),
+                              ),
+                              Positioned(
+                                top: -6,
+                                right: -6,
+                                child: GestureDetector(
+                                  onTap: () {
+                                    setState(() {
+                                      _selectedImages.removeAt(index);
+                                    });
+                                  },
+                                  child: Container(
+                                    padding: const EdgeInsets.all(4),
+                                    decoration: const BoxDecoration(
+                                      color: Colors.black87,
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: const Icon(
+                                      Icons.close,
+                                      size: 16,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
                           );
-                        }).toList(),
+                        }),
                         if (_selectedImages.length < 3)
                           GestureDetector(
                             onTap: _showImageSourceActionSheet,

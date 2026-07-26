@@ -50,7 +50,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final reportAsync = ref.watch(reportListProvider);
+    final reportAsync = ref.watch(visibleReportListProvider);
     return Scaffold(
       appBar: AppBar(title: Text('Şikayet Haritası')),
       body: reportAsync.when(

@@ -38,9 +38,12 @@ dependencies:
   image_picker: ^1.2.3 # kamerayı açmak veya galeriden fotoğrak seçtirmek için
   path_provider: ^2.1.6 # çekilen fotoğrafı cihazın hafızasına kalıcı olarak kaydetmek için dosya yollarını bulur.
   sqflite: ^2.3.3 # verileri(bildirimleri) cşhazın kendi içinde (yerel db) saklamak için
-  uuid: ^4.4.0 # her bildirime benzersiz bir id üretmek için
+  uuid: ^4.4.0 # her bildirime benzersiz bir id ve token üretmek için
   intl: ^0.19.0 # terih ve saatleri düzgün formatlamak için.
   path: ^1.9.1
+  crypto: ^3.0.5 # şifreyi hash lemek için
+  shared_preferences: ^2.3.2 # kim giriş yapmış bilgisini hatırlamak için 
+  dio: ^5.0.0
 
 dev_dependencies:
   flutter_test:

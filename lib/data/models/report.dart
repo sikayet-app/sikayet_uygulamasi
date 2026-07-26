@@ -12,6 +12,7 @@ class Report {
   final double longitude; //boylam
   final List<String> imagePaths;
   final DateTime createdAt;
+  final String userId;
 
   Report({
     required this.id,
@@ -24,6 +25,7 @@ class Report {
     required this.longitude,
     required this.imagePaths,
     required this.createdAt,
+    required this.userId,
   });
 
   // şikayetin durumunu çözüldü yapmak istediğimizde, eski şikayetin tüm verilerini al sadece durumunu değiştiren yeni bir nesne oluştur.
@@ -37,6 +39,7 @@ class Report {
     double? longitude,
     List<String>? imagePaths,
     DateTime? createdAt,
+    String? userId,
   }) {
     return Report(
       id: id ?? this.id,
@@ -48,6 +51,7 @@ class Report {
       longitude: longitude ?? this.longitude,
       imagePaths: imagePaths ?? this.imagePaths,
       createdAt: createdAt ?? this.createdAt,
+      userId: userId ?? this.userId,
     );
   }
 
@@ -55,7 +59,7 @@ class Report {
   // amaç: sqlite dan gelen karmaşık map yapısını temiz bir Report nesnesine çevirmek
   factory Report.fromMap(Map<String, dynamic> map) {
     return Report(
-      id: map['id'] as String,
+      id: map['id'].toString(),
       title: map['title'] as String,
       description: map['description'] as String,
       category: ReportCategory.values.firstWhere(
@@ -72,6 +76,7 @@ class Report {
           ? []
           : (map['imagePaths'] as String).split(','),
       createdAt: DateTime.parse(map['createdAt'] as String),
+      userId: map['userId'].toString(),
     );
   }
 
@@ -87,6 +92,7 @@ class Report {
       'longitude': longitude,
       'imagePaths': imagePaths.join(','),
       'createdAt': createdAt.toIso8601String(),
+      'userId': userId,
     };
   }
 }

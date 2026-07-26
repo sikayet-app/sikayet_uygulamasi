@@ -8,19 +8,8 @@ class LocalReportRepository implements ReportRepository {
 
   @override
   Future<List<Report>> getReports() async {
-    await _seedIfEmpty();
     final maps = await _dbHelper.getAllReports();
     return maps.map((map) => Report.fromMap(map)).toList();
-  }
-
-  Future<void> _seedIfEmpty() async {
-    final count = await _dbHelper.getReportCount();
-    if (count > 0) return;
-
-    final seedReports = _generateSeedData();
-    for (final report in seedReports) {
-      await _dbHelper.insertReport(report);
-    }
   }
 
   @override
@@ -38,43 +27,8 @@ class LocalReportRepository implements ReportRepository {
     await _dbHelper.deleteReport(id);
   }
 
-  List<Report> _generateSeedData() {
-    final now = DateTime.now();
-    const uuid = Uuid();
-    return [
-      Report(
-        id: uuid.v4(),
-        title: 'Üniversite Bulvarı Asfalt Çökmesi ',
-        description: 'Yolda derin bir çukur oluşmuş,araçlar zorlanıyor',
-        category: ReportCategory.pothole,
-        status: ReportStatus.pending,
-        latitude: 37.0263,
-        longitude: 37.2882,
-        imagePaths: [],
-        createdAt: now.subtract(const Duration(days: 2)),
-      ),
-      Report(
-        id: uuid.v4(),
-        title: 'Karataş Sokak Lambası',
-        description: 'Parkın köşesindeki 3 lamba yanmıyor',
-        category: ReportCategory.lighting,
-        status: ReportStatus.inProgress,
-        latitude: 37.0145,
-        longitude: 37.3120,
-        imagePaths: [],
-        createdAt: now.subtract(const Duration(days: 1)),
-      ),
-      Report(
-        id: uuid.v4(),
-        title: 'Sanko Park Yanı Rögar Taşması',
-        description: 'Altyapı sorunu var, yola su taşıyor',
-        category: ReportCategory.infrastructure,
-        status: ReportStatus.resolved,
-        latitude: 37.0658,
-        longitude: 37.3698,
-        imagePaths: [],
-        createdAt: now.subtract(const Duration(days: 5)),
-      ),
-    ];
+  @override
+  Future<void> updateReport(Report report) async {
+    await _dbHelper.insertReport(report);
   }
 }

@@ -3,17 +3,23 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sikayet_uygulamasi/core/report_ui_helpers.dart';
+import 'package:sikayet_uygulamasi/providers/auth_provider.dart';
 import '../providers/report_provider.dart';
 import '../data/models/report.dart';
 import 'report_detail_screen.dart';
+import '../data/models/user.dart';
 
 class ReportListScreen extends ConsumerWidget {
   const ReportListScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final reportAsync = ref.watch(reportListProvider);
-
+    final reportAsync = ref.watch(visibleReportListProvider);
+    final currentUser = ref.watch(currentUserProvider);
+    final isAdmin = currentUser?.role == UserRole.admin;
+    final userMapAsync = isAdmin
+        ? ref.watch(userMapProvider)
+        : const AsyncValue.data(<String, String>{});
     return Scaffold(
       appBar: AppBar(title: const Text('Şikayet Listesi')),
       body: reportAsync.when(
@@ -36,6 +42,8 @@ class ReportListScreen extends ConsumerWidget {
             itemCount: reports.length,
             itemBuilder: (context, index) {
               final report = reports[index];
+              final senderName =
+                  userMapAsync.value?[report.userId] ?? 'Bilinmiyor';
               return Card(
                 margin: EdgeInsets.symmetric(vertical: 8, horizontal: 12),
                 shape: RoundedRectangleBorder(
@@ -133,6 +141,17 @@ class ReportListScreen extends ConsumerWidget {
                                   ),
                                 ],
                               ),
+                              if (isAdmin) ...[
+                                const SizedBox(height: 6),
+                                Text(
+                                  'Gönderen: $senderName',
+                                  style: TextStyle(
+                                    color: Colors.grey[700],
+                                    fontSize: 13,
+                                    fontStyle: FontStyle.italic,
+                                  ),
+                                ),
+                              ],
                             ],
                           ),
                         ),
