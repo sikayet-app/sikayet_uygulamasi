@@ -2,9 +2,10 @@ import '../data/repositories/auth_repository.dart';
 import '../data/repositories/local_auth_repository.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../data/models/user.dart';
+import '../data/repositories/api_auth_repository.dart';
 
 final authRepositoryProvider = Provider<AuthRepository>((ref) {
-  return LocalAuthRepository();
+  return ApiAuthRepository();
 });
 
 //mevcut kullanıcıyı tutucak StateProvider. şuan giriş yapmış kullancı bilgisi
@@ -33,7 +34,10 @@ final userMapProvider = FutureProvider<Map<String, String>>((ref) async {
   return userMap;
 });
 
-final userByIdProvider = FutureProvider.family<User?, String>((ref, userId) async {
+final userByIdProvider = FutureProvider.family<User?, String>((
+  ref,
+  userId,
+) async {
   final authRepository = ref.watch(authRepositoryProvider);
   return authRepository.getUserById(userId);
 });

@@ -28,7 +28,7 @@ class _CreateReportScreenState extends ConsumerState<CreateReportScreen> {
   double? _latitude;
   double? _longitude;
   bool _isLoadingLocation = false;
-  List<File> _selectedImages = [];
+  List<String> _selectedImages = [];
 
   @override
   void initState() {
@@ -37,9 +37,7 @@ class _CreateReportScreenState extends ConsumerState<CreateReportScreen> {
       _title = widget.existingReport!.title;
       _description = widget.existingReport!.description;
       _selectedCategory = widget.existingReport!.category;
-      _selectedImages = widget.existingReport!.imagePaths
-          .map((p) => File(p))
-          .toList();
+      _selectedImages = widget.existingReport!.imagePaths.toList();
     }
   }
 
@@ -79,7 +77,7 @@ class _CreateReportScreenState extends ConsumerState<CreateReportScreen> {
 
         if (mounted) {
           setState(() {
-            _selectedImages.add(savedImage);
+            _selectedImages.add(savedImage.path);
           });
         }
       }
@@ -100,7 +98,7 @@ class _CreateReportScreenState extends ConsumerState<CreateReportScreen> {
 
           if (mounted) {
             setState(() {
-              _selectedImages.add(savedImage);
+              _selectedImages.add(savedImage.path);
             });
           }
         }
@@ -167,7 +165,7 @@ class _CreateReportScreenState extends ConsumerState<CreateReportScreen> {
           status: widget.existingReport?.status ?? ReportStatus.pending,
           latitude: widget.existingReport?.latitude ?? (_latitude ?? 0.0),
           longitude: widget.existingReport?.longitude ?? (_longitude ?? 0.0),
-          imagePaths: _selectedImages.map((image) => image.path).toList(),
+          imagePaths: _selectedImages,
           createdAt: widget.existingReport?.createdAt ?? DateTime.now(),
           userId: widget.existingReport?.userId ?? currentUser!.id,
         );
@@ -276,17 +274,36 @@ class _CreateReportScreenState extends ConsumerState<CreateReportScreen> {
                       runSpacing: 12,
                       children: [
                         ...List.generate(_selectedImages.length, (index) {
+                          final currentImage = _selectedImages[index];
                           return Stack(
                             clipBehavior: Clip.none,
                             children: [
                               ClipRRect(
                                 borderRadius: BorderRadius.circular(12),
-                                child: Image.file(
-                                  _selectedImages[index],
-                                  height: 100,
-                                  width: 100,
-                                  fit: BoxFit.cover,
-                                ),
+                                child: currentImage.startsWith('http')
+                                    ? Image.network(
+                                        currentImage,
+                                        height: 100,
+                                        width: 100,
+                                        fit: BoxFit.cover,
+                                        errorBuilder:
+                                            (context, error, stackTrace) =>
+                                                Container(
+                                                  height: 100,
+                                                  width: 100,
+                                                  color: Colors.grey[300],
+                                                  child: const Icon(
+                                                    Icons.broken_image,
+                                                    color: Colors.grey,
+                                                  ),
+                                                ),
+                                      )
+                                    : Image.file(
+                                        File(currentImage),
+                                        height: 100,
+                                        width: 100,
+                                        fit: BoxFit.cover,
+                                      ),
                               ),
                               Positioned(
                                 top: -6,

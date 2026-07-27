@@ -42,8 +42,7 @@ class ReportListScreen extends ConsumerWidget {
             itemCount: reports.length,
             itemBuilder: (context, index) {
               final report = reports[index];
-              final senderName =
-                  userMapAsync.value?[report.userId] ?? 'Bilinmiyor';
+              final senderName = report.senderName ?? 'Bilinmiyor';
               return Card(
                 margin: EdgeInsets.symmetric(vertical: 8, horizontal: 12),
                 shape: RoundedRectangleBorder(
@@ -70,12 +69,31 @@ class ReportListScreen extends ConsumerWidget {
                         report.imagePaths.isNotEmpty
                             ? ClipRRect(
                                 borderRadius: BorderRadius.circular(8),
-                                child: Image.file(
-                                  File(report.imagePaths.first),
-                                  width: 50,
-                                  height: 50,
-                                  fit: BoxFit.cover,
-                                ),
+                                child:
+                                    report.imagePaths.first.startsWith('http')
+                                    ? Image.network(
+                                        report.imagePaths.first,
+                                        width: 50,
+                                        height: 50,
+                                        fit: BoxFit.cover,
+                                        errorBuilder:
+                                            (context, error, stackTrace) =>
+                                                Container(
+                                                  width: 50,
+                                                  height: 50,
+                                                  color: Colors.grey[300],
+                                                  child: const Icon(
+                                                    Icons.broken_image,
+                                                    color: Colors.grey,
+                                                  ),
+                                                ),
+                                      )
+                                    : Image.file(
+                                        File(report.imagePaths.first),
+                                        width: 50,
+                                        height: 50,
+                                        fit: BoxFit.cover,
+                                      ),
                               )
                             : Container(
                                 decoration: BoxDecoration(

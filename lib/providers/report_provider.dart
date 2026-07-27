@@ -4,11 +4,12 @@ import 'package:sikayet_uygulamasi/providers/auth_provider.dart';
 import '../data/repositories/local_report_repository.dart';
 import '../data/repositories/report_repository.dart';
 import '../data/models/report.dart';
+import '../data/repositories/api_report_repository.dart';
 
 enum SortOrder { newest, oldest }
 
 final reportRepositoryProvider = Provider<ReportRepository>((ref) {
-  return LocalReportRepository();
+  return ApiReportRepository();
 });
 
 final reportListProvider = FutureProvider<List<Report>>((ref) async {

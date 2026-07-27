@@ -13,6 +13,7 @@ class Report {
   final List<String> imagePaths;
   final DateTime createdAt;
   final String userId;
+  final String? senderName;
 
   Report({
     required this.id,
@@ -26,6 +27,7 @@ class Report {
     required this.imagePaths,
     required this.createdAt,
     required this.userId,
+    this.senderName,
   });
 
   // şikayetin durumunu çözüldü yapmak istediğimizde, eski şikayetin tüm verilerini al sadece durumunu değiştiren yeni bir nesne oluştur.
@@ -40,6 +42,7 @@ class Report {
     List<String>? imagePaths,
     DateTime? createdAt,
     String? userId,
+    String? senderName,
   }) {
     return Report(
       id: id ?? this.id,
@@ -52,12 +55,39 @@ class Report {
       imagePaths: imagePaths ?? this.imagePaths,
       createdAt: createdAt ?? this.createdAt,
       userId: userId ?? this.userId,
+      senderName: senderName ?? this.senderName,
     );
   }
 
   // db den okuma için. factory, var olan veya yeni nesneyi döndürmemizi sağlar.
   // amaç: sqlite dan gelen karmaşık map yapısını temiz bir Report nesnesine çevirmek
   factory Report.fromMap(Map<String, dynamic> map) {
+    // 1. Kullanıcı bilgisi: API'den geliyorsa gömülü 'user' objesi var,
+    // yoksa (local/test durumunda) düz 'userId' alanına bak.
+    String userId;
+    String? senderName;
+    if (map['user'] != null && map['user'] is Map) {
+      final userMap = map['user'] as Map;
+      userId = userMap['id'].toString();
+      senderName = userMap['name'] as String?;
+    } else {
+      userId = map['userId'].toString();
+    }
+
+    // 2. Fotoğraflar: API 'image_urls' kullanıyor, local 'imagePaths' kullanıyor.
+    final rawImages = map['image_urls'] ?? map['imagePaths'];
+    List<String> imagePaths;
+    if (rawImages is List) {
+      imagePaths = rawImages.map((e) => e.toString()).toList();
+    } else if (rawImages is String) {
+      imagePaths = rawImages.isEmpty ? [] : rawImages.split(',');
+    } else {
+      imagePaths = [];
+    }
+
+    // 3. Tarih: API 'created_at', local 'createdAt'.
+    final rawCreatedAt = map['created_at'] ?? map['createdAt'];
+
     return Report(
       id: map['id'].toString(),
       title: map['title'] as String,
@@ -72,11 +102,10 @@ class Report {
       ),
       latitude: (map['latitude'] as num).toDouble(),
       longitude: (map['longitude'] as num).toDouble(),
-      imagePaths: (map['imagePaths'] as String).isEmpty
-          ? []
-          : (map['imagePaths'] as String).split(','),
-      createdAt: DateTime.parse(map['createdAt'] as String),
-      userId: map['userId'].toString(),
+      imagePaths: imagePaths,
+      createdAt: DateTime.parse(rawCreatedAt.toString()),
+      userId: userId,
+      senderName: senderName,
     );
   }
 

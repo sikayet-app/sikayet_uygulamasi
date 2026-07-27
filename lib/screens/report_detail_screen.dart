@@ -50,13 +50,27 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
     if (confirm != true) return;
     if (!context.mounted) return;
 
-    //onaylandıysa sil
-    await ref.read(reportRepositoryProvider).deleteReport(_currentReport.id);
-    ref.invalidate(reportListProvider);
-
-    //detay sayfasından çık
-    if (context.mounted) {
-      Navigator.pop(context);
+    //hatayı ekrana yansıtmak için
+    try {
+      //onaylandıysa sil
+      await ref.read(reportRepositoryProvider).deleteReport(_currentReport.id);
+      ref.invalidate(reportListProvider);
+      //detay sayfasından çık
+      if (context.mounted) {
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Bildirim başarıyla silindi')),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Silinirken hata: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 
@@ -109,12 +123,29 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
                 children: _currentReport.imagePaths.map((image) {
                   return ClipRRect(
                     borderRadius: BorderRadius.circular(16),
-                    child: Image.file(
-                      File(image),
-                      height: 100,
-                      width: 110,
-                      fit: BoxFit.cover,
-                    ),
+                    child: image.startsWith('http')
+                        ? Image.network(
+                            image,
+                            height: 100,
+                            width: 110,
+                            fit: BoxFit.cover,
+                            errorBuilder: (context, error, stackTrace) =>
+                                Container(
+                                  height: 100,
+                                  width: 110,
+                                  color: Colors.grey[300],
+                                  child: const Icon(
+                                    Icons.broken_image,
+                                    color: Colors.grey,
+                                  ),
+                                ),
+                          )
+                        : Image.file(
+                            File(image),
+                            height: 100,
+                            width: 110,
+                            fit: BoxFit.cover,
+                          ),
                   );
                 }).toList(),
               ),
@@ -126,23 +157,15 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
             ),
             const SizedBox(height: 24),
             if (canChangeStatus) ...[
-              ref
-                  .watch(userByIdProvider(_currentReport.userId))
-                  .when(
-                    data: (user) => Text(
-                      'Gönderen: ${user?.name ?? "Bilinmiyor"}',
-                      style: TextStyle(
-                        color: Colors.grey[700],
-                        fontSize: 14,
-                        fontStyle: FontStyle.italic,
-                      ),
-                    ),
-                    loading: () => const Text(
-                      'Göndern yükleniyor...',
-                      style: TextStyle(color: Colors.grey),
-                    ),
-                    error: (e, st) => const SizedBox.shrink(),
-                  ),
+              Text(
+                'Gönderen: ${_currentReport.senderName ?? "Bilinmiyor"}',
+                style: TextStyle(
+                  color: Colors.grey[700],
+                  fontSize: 14,
+                  fontStyle: FontStyle.italic,
+                ),
+              ),
+
               const SizedBox(height: 12),
             ],
             Row(
