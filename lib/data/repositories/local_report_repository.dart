@@ -31,4 +31,14 @@ class LocalReportRepository implements ReportRepository {
   Future<void> updateReport(Report report) async {
     await _dbHelper.insertReport(report);
   }
+
+  @override
+  Future<void> updateStatusWithNote(String reportId, ReportStatus status, String? note) async{
+    await _dbHelper.updateStatusWithNote(reportId, status.name, note);
+  }
+
+  @override
+  Future<void> assignReport(String reportId, String staffId) async {
+    
+  }
 }

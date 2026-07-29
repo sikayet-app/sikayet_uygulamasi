@@ -41,3 +41,8 @@ final userByIdProvider = FutureProvider.family<User?, String>((
   final authRepository = ref.watch(authRepositoryProvider);
   return authRepository.getUserById(userId);
 });
+
+final staffListProvider = FutureProvider<List<User>>((ref) async {
+  final authRepo = ref.watch(authRepositoryProvider);
+  return authRepo.getStaffList();
+});

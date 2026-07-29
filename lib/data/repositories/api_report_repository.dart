@@ -79,7 +79,7 @@ class ApiReportRepository implements ReportRepository {
   Future<void> updateReport(Report report) async {
     // Laravel'e bunun bir PATCH (Yama/Güncelleme) işlemi olduğunu söylüyoruz.
     final formData = FormData.fromMap({
-      '_method': 'PATCH', 
+      '_method': 'PATCH',
       'title': report.title,
       'description': report.description,
       'category': report.category.name,
@@ -98,5 +98,25 @@ class ApiReportRepository implements ReportRepository {
 
     // İstek POST olarak gidiyor ama içindeki '_method' sayesinde backend bunu PATCH olarak işliyor.
     await _dio.post('/reports/${report.id}', data: formData);
+  }
+
+  @override
+  Future<void> updateStatusWithNote(
+    String reportId,
+    ReportStatus status,
+    String? note,
+  ) async {
+    await _dio.patch(
+      '/reports/$reportId/status',
+      data: {'status': status.name, 'resolution_note': note},
+    );
+  }
+
+  @override
+  Future<void> assignReport(String reportId, String staffId) async {
+    await _dio.patch(
+      '/reports/$reportId/assign',
+      data: {'assigned_staff_id': staffId},
+    );
   }
 }

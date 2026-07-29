@@ -121,13 +121,42 @@ class ApiAuthRepository implements AuthRepository {
 
   @override
   Future<User?> getUserById(String userId) async {
-    // backend de id ile kullanıcı getirme yok
-    return null;
+    try {
+      final token = _getToken();
+      if (token == null) return null;
+
+      final response = await _dio.get(
+        '/users/$userId',
+        options: Options(headers: {'Authorization': 'Bearer $token'}),
+      );
+      final userData = response.data['data'] ?? response.data;
+      return User.fromMap(userData);
+    } catch (e) {
+      return null;
+    }
   }
 
   @override
   Future<List<User>> getAllUsers() async {
-    //backend de yok
-    return [];
+    try {
+      final token = await _getToken();
+      if (token == null) throw Exception('Yetkilendirme hatası');
+
+      final response = await _dio.get(
+        '/users',
+        options: Options(headers: {'Authorization': 'Bearer $token'}),
+      );
+
+      final List<dynamic> data = response.data['data'] ?? response.data;
+      return data.map((json) => User.fromMap(json)).toList();
+    } on DioException catch (e) {
+      throw Exception('Kullanıcılar getirilemedi: ${e.message}');
+    }
+  }
+
+  @override
+  Future<List<User>> getStaffList() async {
+    final allUsers = await getAllUsers();
+    return allUsers.where((user) => user.role == UserRole.staff).toList();
   }
 }

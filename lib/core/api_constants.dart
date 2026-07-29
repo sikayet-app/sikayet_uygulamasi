@@ -1,4 +1,4 @@
 class ApiConstants {
   static const String baseUrl =
-      'https://tubes-manufacturer-rug-knights.trycloudflare.com/api';
+      'https://adams-proceed-browsers-pillow.trycloudflare.com/api';
 }

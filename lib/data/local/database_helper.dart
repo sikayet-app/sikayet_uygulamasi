@@ -40,7 +40,8 @@ class DatabaseHelper {
         longitude REAL NOT NULL,
         imagePaths TEXT NOT NULL,
         createdAt TEXT NOT NULL,
-        userId TEXT NOT NULL
+        userId TEXT NOT NULL,
+        resolutionNote TEXT,
       )
       
     ''');
@@ -127,5 +128,18 @@ class DatabaseHelper {
     );
     return result.isNotEmpty;
   }
-  
+
+  Future<void> updateStatusWithNote(
+    String id,
+    String newStatus,
+    String? note,
+  ) async {
+    final db = await instance.database;
+    await db.update(
+      'reports',
+      {'status': newStatus, 'resolutionNote': note},
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+  }
 }

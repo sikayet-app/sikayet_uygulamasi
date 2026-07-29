@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:path/path.dart';
 import 'package:sikayet_uygulamasi/core/report_ui_helpers.dart';
 import 'package:sikayet_uygulamasi/providers/auth_provider.dart';
 import '../providers/report_provider.dart';
@@ -16,10 +17,8 @@ class ReportListScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final reportAsync = ref.watch(visibleReportListProvider);
     final currentUser = ref.watch(currentUserProvider);
-    final isAdmin = currentUser?.role == UserRole.admin;
-    final userMapAsync = isAdmin
-        ? ref.watch(userMapProvider)
-        : const AsyncValue.data(<String, String>{});
+    final showSenderInfo =
+        currentUser != null && currentUser.role != UserRole.citizen;
     return Scaffold(
       appBar: AppBar(title: const Text('Şikayet Listesi')),
       body: reportAsync.when(
@@ -93,6 +92,17 @@ class ReportListScreen extends ConsumerWidget {
                                         width: 50,
                                         height: 50,
                                         fit: BoxFit.cover,
+                                        errorBuilder:
+                                            (context, error, stackTrace) =>
+                                                Container(
+                                                  width: 50,
+                                                  height: 50,
+                                                  color: Colors.grey[300],
+                                                  child: const Icon(
+                                                    Icons.broken_image,
+                                                    color: Colors.grey,
+                                                  ),
+                                                ),
                                       ),
                               )
                             : Container(
@@ -159,7 +169,7 @@ class ReportListScreen extends ConsumerWidget {
                                   ),
                                 ],
                               ),
-                              if (isAdmin) ...[
+                              if (showSenderInfo) ...[
                                 const SizedBox(height: 6),
                                 Text(
                                   'Gönderen: $senderName',

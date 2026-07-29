@@ -1,4 +1,4 @@
-enum UserRole { admin, user }
+enum UserRole { admin, managing, staff, citizen }
 
 class User {
   final String id;
@@ -20,7 +20,7 @@ class User {
       email: map['email'] as String,
       role: UserRole.values.firstWhere(
         (e) => e.name == map['role'],
-        orElse: () => UserRole.user,
+        orElse: () => UserRole.citizen,
       ),
     );
   }
@@ -42,8 +42,12 @@ class User {
 String getRoleLabel(UserRole role) {
   switch (role) {
     case UserRole.admin:
-      return 'Yönetici';
-    case UserRole.user:
+      return 'Sistem Yöneticisi';
+    case UserRole.citizen:
       return 'Vatandaş';
+    case UserRole.managing:
+      return 'Sorumlu';
+    case UserRole.staff:
+      return 'Personel';
   }
 }

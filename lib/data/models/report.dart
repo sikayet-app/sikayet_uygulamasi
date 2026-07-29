@@ -1,6 +1,6 @@
 enum ReportCategory { pothole, lighting, garbage, infrastructure, other }
 
-enum ReportStatus { pending, inProgress, resolved }
+enum ReportStatus { pending, inProgress, resolved, rejected, invalid }
 
 class Report {
   final String id;
@@ -14,6 +14,9 @@ class Report {
   final DateTime createdAt;
   final String userId;
   final String? senderName;
+  final String? resolutionNote;
+  final String? assignedStaffId;
+  final String? assignedStaffName;
 
   Report({
     required this.id,
@@ -28,6 +31,9 @@ class Report {
     required this.createdAt,
     required this.userId,
     this.senderName,
+    this.resolutionNote,
+    this.assignedStaffId,
+    this.assignedStaffName,
   });
 
   // şikayetin durumunu çözüldü yapmak istediğimizde, eski şikayetin tüm verilerini al sadece durumunu değiştiren yeni bir nesne oluştur.
@@ -43,6 +49,9 @@ class Report {
     DateTime? createdAt,
     String? userId,
     String? senderName,
+    String? resolutionNote,
+    String? assignedStaffId,
+    String? assignedStaffName,
   }) {
     return Report(
       id: id ?? this.id,
@@ -56,6 +65,9 @@ class Report {
       createdAt: createdAt ?? this.createdAt,
       userId: userId ?? this.userId,
       senderName: senderName ?? this.senderName,
+      resolutionNote: resolutionNote ?? this.resolutionNote,
+      assignedStaffId: assignedStaffId ?? this.assignedStaffId,
+      assignedStaffName: assignedStaffName ?? this.assignedStaffName,
     );
   }
 
@@ -88,6 +100,13 @@ class Report {
     // 3. Tarih: API 'created_at', local 'createdAt'.
     final rawCreatedAt = map['created_at'] ?? map['createdAt'];
 
+    final resolutionNote = map['resolution_note'] ?? map['resolutionNote'];
+    final assignedStaffId =
+        map['assigned_staff_id']?.toString() ??
+        map['assignedStaffId']?.toString();
+    final assignedStaffName =
+        map['assigned_staff_name'] ?? map['assignedStaffName'];
+
     return Report(
       id: map['id'].toString(),
       title: map['title'] as String,
@@ -106,6 +125,9 @@ class Report {
       createdAt: DateTime.parse(rawCreatedAt.toString()),
       userId: userId,
       senderName: senderName,
+      resolutionNote: resolutionNote,
+      assignedStaffId: assignedStaffId,
+      assignedStaffName: assignedStaffName,
     );
   }
 
@@ -122,6 +144,9 @@ class Report {
       'imagePaths': imagePaths.join(','),
       'createdAt': createdAt.toIso8601String(),
       'userId': userId,
+      'resolutionNote': resolutionNote,
+      'assignedStaffId': assignedStaffId,
+      'assignedStaffName': assignedStaffName,
     };
   }
 }
@@ -150,5 +175,9 @@ String getStatusLabel(ReportStatus status) {
       return "İşlemde";
     case ReportStatus.resolved:
       return "Çözüldü";
+    case ReportStatus.rejected:
+      return "Reddedildi";
+    case ReportStatus.invalid:
+      return "Asılsız";
   }
 }

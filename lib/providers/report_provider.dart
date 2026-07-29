@@ -44,10 +44,19 @@ final filteredReportListProvider = Provider<AsyncValue<List<Report>>>((ref) {
 final visibleReportListProvider = Provider<AsyncValue<List<Report>>>((ref) {
   final reportsAsync = ref.watch(reportListProvider);
   final currentUser = ref.watch(currentUserProvider);
-
+  
   return reportsAsync.whenData((reports) {
     if (currentUser == null) return <Report>[];
+    
+    // Yöneticiler ve Sorumlular her şeyi görür
     if (canViewAllReports(currentUser.role)) return reports;
+    
+    // Personel sadece kendine atananları görür
+    if (canViewAssignedReportsOnly(currentUser.role)) {
+      return reports.where((r) => r.assignedStaffId == currentUser.id).toList();
+    }
+    
+    // Vatandaş sadece kendi açtığı şikayetleri görür
     return reports.where((r) => r.userId == currentUser.id).toList();
   });
 });

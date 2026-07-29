@@ -24,7 +24,7 @@ class LocalAuthRepository implements AuthRepository {
       id: const Uuid().v4(),
       name: name,
       email: email,
-      role: UserRole.user,
+      role: UserRole.citizen,
     );
 
     await _dbHelper.insertUser(user, passwordHash);
@@ -105,5 +105,11 @@ class LocalAuthRepository implements AuthRepository {
     final userMap = await _dbHelper.getUserById(userId);
     if (userMap == null) return null;
     return User.fromMap(userMap);
+  }
+
+  @override
+  Future<List<User>> getStaffList() async {
+    final allUsers = await getAllUsers();
+    return allUsers.where((user) => user.role == UserRole.staff).toList();
   }
 }
