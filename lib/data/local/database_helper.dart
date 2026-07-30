@@ -42,6 +42,8 @@ class DatabaseHelper {
         createdAt TEXT NOT NULL,
         userId TEXT NOT NULL,
         resolutionNote TEXT,
+        assignedStaffId TEXT,
+        assignedStaffName TEXT
       )
       
     ''');
@@ -138,6 +140,16 @@ class DatabaseHelper {
     await db.update(
       'reports',
       {'status': newStatus, 'resolutionNote': note},
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+  }
+
+  Future<void> assignStaff(String id, String staffId, String staffName) async {
+    final db = await instance.database;
+    await db.update(
+      'reports',
+      {'assignedStaffId': staffId, 'assignedStaffName': staffName},
       where: 'id = ?',
       whereArgs: [id],
     );

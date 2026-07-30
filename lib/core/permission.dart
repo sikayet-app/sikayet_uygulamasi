@@ -13,7 +13,7 @@ bool canEditReport(Report report, User currentUser) {
   return false;
 }
 
-bool canDeleteReport(Report report, User currentUser) {
+/*bool canDeleteReport(Report report, User currentUser) {
   // sistem yöneticisi her şeyi silebilir
   if (currentUser.role == UserRole.admin) return true;
   // sorumlu,gereksiz ve saçma şikayetleri silebilir.
@@ -24,7 +24,7 @@ bool canDeleteReport(Report report, User currentUser) {
         report.status == ReportStatus.pending;
   }
   return false;
-}
+}*/
 
 bool canUpdateStatus(Report report, User currentUser) {
   // sorumlu herkesin durumunu güncelleyebilir
@@ -50,4 +50,8 @@ bool canManageManaging(UserRole role) {
 
 bool canViewAssignedReportsOnly(UserRole role) {
   return role == UserRole.staff;
+}
+
+bool canCreateReport(UserRole role) {
+  return role == UserRole.citizen;
 }

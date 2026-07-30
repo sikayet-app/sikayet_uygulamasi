@@ -17,6 +17,7 @@ class Report {
   final String? resolutionNote;
   final String? assignedStaffId;
   final String? assignedStaffName;
+  final bool canDeleteReport;
 
   Report({
     required this.id,
@@ -34,6 +35,7 @@ class Report {
     this.resolutionNote,
     this.assignedStaffId,
     this.assignedStaffName,
+    this.canDeleteReport = false,
   });
 
   // şikayetin durumunu çözüldü yapmak istediğimizde, eski şikayetin tüm verilerini al sadece durumunu değiştiren yeni bir nesne oluştur.
@@ -52,6 +54,7 @@ class Report {
     String? resolutionNote,
     String? assignedStaffId,
     String? assignedStaffName,
+    bool? canDeleteReport,
   }) {
     return Report(
       id: id ?? this.id,
@@ -68,6 +71,7 @@ class Report {
       resolutionNote: resolutionNote ?? this.resolutionNote,
       assignedStaffId: assignedStaffId ?? this.assignedStaffId,
       assignedStaffName: assignedStaffName ?? this.assignedStaffName,
+      canDeleteReport: canDeleteReport ?? this.canDeleteReport,
     );
   }
 
@@ -101,11 +105,16 @@ class Report {
     final rawCreatedAt = map['created_at'] ?? map['createdAt'];
 
     final resolutionNote = map['resolution_note'] ?? map['resolutionNote'];
-    final assignedStaffId =
+    String? assignedStaffId =
         map['assigned_staff_id']?.toString() ??
         map['assignedStaffId']?.toString();
-    final assignedStaffName =
-        map['assigned_staff_name'] ?? map['assignedStaffName'];
+    String? assignedStaffName = map['assignedStaffName'];
+
+    // eğer backend den assigned staff objesi geliyorsa ismi o objenin içinden çek
+    if (map['assigned_staff'] != null && map['assigned_staff'] is Map) {
+      final staffMap = map['assigned_staff'] as Map;
+      assignedStaffName = staffMap['name'] as String?;
+    }
 
     return Report(
       id: map['id'].toString(),
@@ -128,6 +137,7 @@ class Report {
       resolutionNote: resolutionNote,
       assignedStaffId: assignedStaffId,
       assignedStaffName: assignedStaffName,
+      canDeleteReport: map['can_delete_report'] as bool ?? false,
     );
   }
 

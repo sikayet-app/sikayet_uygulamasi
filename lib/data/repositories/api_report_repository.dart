@@ -114,9 +114,6 @@ class ApiReportRepository implements ReportRepository {
 
   @override
   Future<void> assignReport(String reportId, String staffId) async {
-    await _dio.patch(
-      '/reports/$reportId/assign',
-      data: {'assigned_staff_id': staffId},
-    );
+    await _dio.patch('/reports/$reportId/assign', data: {'staff_id': staffId});
   }
 }

@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:sikayet_uygulamasi/core/theme_service.dart';
 import 'package:sikayet_uygulamasi/providers/auth_provider.dart';
 import 'login_screen.dart';
 import '../data/models/user.dart';
+import '../providers/theme_provider.dart';
 
 class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});
@@ -10,6 +12,7 @@ class ProfileScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final user = ref.watch(currentUserProvider);
+    final currentTheme = ref.watch(themeModeProvider);
     //eğer user henüz yüklenmediyse boş dön
     if (user == null) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
@@ -55,6 +58,46 @@ class ProfileScreen extends ConsumerWidget {
                       : Colors.blue[800],
                   fontWeight: FontWeight.bold,
                 ),
+              ),
+            ),
+            SizedBox(height: 12),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                'Uygulama Ayarları',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: Colors.grey[700],
+                ),
+              ),
+            ),
+            SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              child: SegmentedButton<ThemeMode>(
+                segments: const [
+                  ButtonSegment(
+                    value: ThemeMode.light,
+                    label: Text('Açık'),
+                    icon: Icon(Icons.light_mode),
+                  ),
+                  ButtonSegment(
+                    value: ThemeMode.dark,
+                    label: Text('Koyu'),
+                    icon: Icon(Icons.dark_mode),
+                  ),
+                  ButtonSegment(
+                    value: ThemeMode.system,
+                    label: Text('Sistem'),
+                    icon: Icon(Icons.settings_suggest),
+                  ),
+                ],
+                selected: {currentTheme},
+                onSelectionChanged: (Set<ThemeMode> newSelection) async {
+                  ref.read(themeModeProvider.notifier).state =
+                      newSelection.first;
+                  ThemeService().saveThemeMode(newSelection.first);
+                },
               ),
             ),
             const Spacer(),

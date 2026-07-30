@@ -197,8 +197,13 @@ class _CreateReportScreenState extends ConsumerState<CreateReportScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final primaryColor = Theme.of(context).primaryColor;
     return Scaffold(
+      backgroundColor: Colors.white,
       appBar: AppBar(
+        elevation: 0,
+        backgroundColor: Colors.white,
+        foregroundColor: Colors.black,
         title: Text(
           widget.existingReport != null
               ? 'Bildirimi Düzenle'
@@ -213,7 +218,24 @@ class _CreateReportScreenState extends ConsumerState<CreateReportScreen> {
             children: [
               TextFormField(
                 initialValue: _title,
-                decoration: const InputDecoration(labelText: 'Başlık'),
+                decoration: InputDecoration(
+                  labelText: 'Başlık',
+                  prefixIcon: Icon(Icons.title),
+                  filled: true,
+                  fillColor: Colors.grey.shade50,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: Colors.grey.shade300),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: Colors.grey.shade300),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: primaryColor, width: 2),
+                  ),
+                ),
                 validator: (value) {
                   if (value == null || value.isEmpty) {
                     return 'Lütfen bir başlık girin';
@@ -228,9 +250,24 @@ class _CreateReportScreenState extends ConsumerState<CreateReportScreen> {
 
               TextFormField(
                 initialValue: _description,
-                decoration: const InputDecoration(
+                decoration: InputDecoration(
                   labelText: 'Açıklama',
                   alignLabelWithHint: true,
+                  prefixIcon: Icon(Icons.description_outlined),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: Colors.grey.shade300),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: Colors.grey.shade300),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: primaryColor, width: 2),
+                  ),
+                  filled: true,
+                  fillColor: Colors.grey.shade50,
                 ),
                 maxLines: 4,
                 validator: (value) {
@@ -250,18 +287,22 @@ class _CreateReportScreenState extends ConsumerState<CreateReportScreen> {
                       onTap: _showImageSourceActionSheet,
                       child: Container(
                         decoration: BoxDecoration(
-                          color: Colors.grey[300],
-                          borderRadius: BorderRadius.circular(12),
+                          color: primaryColor.withValues(alpha: 0.05),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(
+                            color: primaryColor.withValues(alpha: 0.3),
+                            width: 2,
+                          ),
                         ),
                         height: 150,
                         width: double.infinity,
-                        child: const Column(
+                        child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             Icon(
                               Icons.photo_camera,
                               size: 40,
-                              color: Colors.black54,
+                              color: primaryColor,
                             ),
                             SizedBox(height: 8),
                             Text('Fotoğraf ekle (Maksimum 3)'),
@@ -338,20 +379,41 @@ class _CreateReportScreenState extends ConsumerState<CreateReportScreen> {
                               height: 100,
                               width: 100,
                               decoration: BoxDecoration(
-                                color: Colors.grey[300],
+                                color: primaryColor.withValues(alpha: 0.05),
                                 borderRadius: BorderRadius.circular(12),
+                                border: Border.all(
+                                  color: primaryColor.withValues(alpha: 0.3),
+                                  width: 2,
+                                ),
                               ),
-                              child: const Icon(
+                              child: Icon(
                                 Icons.add_a_photo,
-                                color: Colors.black54,
+                                color: primaryColor,
                               ),
                             ),
                           ),
                       ],
                     ),
-
+              const SizedBox(height: 24),
               DropdownButtonFormField<ReportCategory>(
-                decoration: const InputDecoration(labelText: 'Kategori'),
+                decoration: InputDecoration(
+                  labelText: 'Kategori',
+                  prefixIcon: const Icon(Icons.category_outlined),
+                  filled: true,
+                  fillColor: Colors.grey.shade50,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: Colors.grey.shade300),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: Colors.grey.shade300),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: primaryColor, width: 2),
+                  ),
+                ),
                 value: _selectedCategory,
                 items: ReportCategory.values.map((category) {
                   return DropdownMenuItem(
@@ -365,11 +427,34 @@ class _CreateReportScreenState extends ConsumerState<CreateReportScreen> {
                   });
                 },
               ),
-              ElevatedButton(
-                child: _isLoadingLocation == true
-                    ? CircularProgressIndicator(color: Colors.white)
-                    : Text('Bildirimi Gönder'),
-                onPressed: _isLoadingLocation == true ? null : _submitForm,
+              const SizedBox(height: 32),
+              SizedBox(
+                width: double.infinity,
+                height: 52,
+                child: ElevatedButton(
+                  child: _isLoadingLocation == true
+                      ? SizedBox(
+                          child: CircularProgressIndicator(color: Colors.white),
+                          height: 24,
+                          width: 24,
+                        )
+                      : Text(
+                          'Bildirimi Gönder',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                  onPressed: _isLoadingLocation == true ? null : _submitForm,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: primaryColor,
+                    foregroundColor: Colors.white,
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                ),
               ),
             ],
           ),

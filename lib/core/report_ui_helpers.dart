@@ -1,3 +1,5 @@
+import 'package:intl/intl.dart';
+
 import '../data/models/report.dart';
 import 'package:flutter/material.dart';
 
@@ -14,4 +16,8 @@ Color colorForStatus(ReportStatus status) {
     case ReportStatus.invalid:
       return Colors.grey.shade600;
   }
+}
+
+String getFormattedDate(DateTime date) {
+  return DateFormat('dd.MM.yyyy HH:mm').format(date);
 }
