@@ -1,31 +1,38 @@
 import 'package:flutter/material.dart';
+import 'package:sikayet_uygulamasi/data/models/user.dart';
+import 'package:sikayet_uygulamasi/screens/user_management_screen.dart';
 import 'home_screen.dart';
 import 'report_list_screen.dart';
 import 'create_report_screen.dart';
 import 'profile_screen.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../providers/auth_provider.dart';
 
 // sekmeler arası geçiş yapacağımız için state
-class MainNavigationScreen extends StatefulWidget {
+class MainNavigationScreen extends ConsumerStatefulWidget {
   const MainNavigationScreen({super.key});
 
   @override
-  State<MainNavigationScreen> createState() => _MainNavigationScreenState();
+  ConsumerState<MainNavigationScreen> createState() =>
+      _MainNavigationScreenState();
 }
 
-class _MainNavigationScreenState extends State<MainNavigationScreen> {
+class _MainNavigationScreenState extends ConsumerState<MainNavigationScreen> {
   int _currentIndex = 0;
-
-  // geçiş yapacağımız ekranların listesi
-  final List<Widget> _screens = [
-    const HomeScreen(),
-    const ReportListScreen(),
-    const ProfileScreen(),
-  ];
 
   @override
   Widget build(BuildContext context) {
+    final user = ref.watch(currentUserProvider);
+    final canManageUsers =
+        user?.role == UserRole.admin || user?.role == UserRole.managing;
+    final List<Widget> screens = [
+      const HomeScreen(),
+      const ReportListScreen(),
+      const UserManagementScreen(),
+      const ProfileScreen(),
+    ];
     return Scaffold(
-      body: IndexedStack(index: _currentIndex, children: _screens),
+      body: IndexedStack(index: _currentIndex, children: screens),
       floatingActionButton: FloatingActionButton(
         onPressed: () {
           Navigator.of(context).push(
@@ -63,12 +70,25 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
             ),
             const SizedBox(width: 40),
 
+            if (canManageUsers)
+              IconButton(
+                icon: const Icon(Icons.people_outlined),
+                onPressed: () {
+                  setState(() {
+                    _currentIndex = 2;
+                  });
+                },
+                color: _currentIndex == 2 ? Colors.blue : Colors.grey,
+              ),
+
             IconButton(
               icon: const Icon(Icons.person_outline),
-              color: _currentIndex == 2 ? Colors.blue : Colors.grey,
+              color: _currentIndex == screens.length - 1
+                  ? Colors.blue
+                  : Colors.grey,
               onPressed: () {
                 setState(() {
-                  _currentIndex = 2;
+                  _currentIndex = screens.length - 1;
                 });
               },
             ),

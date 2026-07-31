@@ -74,7 +74,6 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  
                   Text(
                     'Kayıt Ol',
                     textAlign: TextAlign.center,

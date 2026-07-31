@@ -46,3 +46,13 @@ final staffListProvider = FutureProvider<List<User>>((ref) async {
   final authRepo = ref.watch(authRepositoryProvider);
   return authRepo.getStaffList();
 });
+
+final managingListProvider = FutureProvider<List<User>>((ref) async {
+  final authRepo = ref.watch(authRepositoryProvider);
+  return authRepo.getManagingList();
+});
+
+final citizenListProvider = FutureProvider<List<User>>((ref) async {
+  final authRepo = ref.watch(authRepositoryProvider);
+  return authRepo.getCitizenList();
+});

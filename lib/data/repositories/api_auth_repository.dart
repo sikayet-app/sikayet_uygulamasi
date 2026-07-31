@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sikayet_uygulamasi/core/api_constants.dart';
@@ -6,20 +8,31 @@ import '../models/user.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class ApiAuthRepository implements AuthRepository {
-  final Dio _dio = Dio(
-    BaseOptions(
-      baseUrl: ApiConstants.baseUrl,
-      headers: {'Accept': 'application/json'},
-    ),
-  );
+  late final Dio _dio;
+  ApiAuthRepository() {
+    _dio = Dio(
+      BaseOptions(
+        baseUrl: ApiConstants.baseUrl,
+        headers: {'Accept': 'application/json'},
+      ),
+    );
+    _dio.interceptors.add(
+      InterceptorsWrapper(
+        onRequest: (options, handler) async {
+          final prefs = await SharedPreferences.getInstance();
+          final token = prefs.getString('authToken');
+
+          if (token != null) {
+            options.headers['Authorization'] = 'Bearer $token';
+          }
+          return handler.next(options);
+        },
+      ),
+    );
+  }
   Future<void> _saveSession(String token) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('authToken', token);
-  }
-
-  Future<String?> _getToken() async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getString('authToken');
   }
 
   @override
@@ -89,13 +102,7 @@ class ApiAuthRepository implements AuthRepository {
   @override
   Future<User?> getCurrentUser() async {
     try {
-      final token = await _getToken();
-      if (token == null) return null;
-
-      final response = await _dio.get(
-        '/me',
-        options: Options(headers: {'Authorization': 'Bearer $token'}),
-      );
+      final response = await _dio.get('/me');
       return User.fromMap(response.data['data']);
     } catch (e) {
       return null;
@@ -105,13 +112,7 @@ class ApiAuthRepository implements AuthRepository {
   @override
   Future<void> logout() async {
     try {
-      final token = await _getToken();
-      if (token != null) {
-        await _dio.post(
-          '/logout',
-          options: Options(headers: {'Authorization': 'Bearer $token'}),
-        );
-      }
+      await _dio.post('/logout');
     } catch (e) {
     } finally {
       final prefs = await SharedPreferences.getInstance();
@@ -122,13 +123,7 @@ class ApiAuthRepository implements AuthRepository {
   @override
   Future<User?> getUserById(String userId) async {
     try {
-      final token = _getToken();
-      if (token == null) return null;
-
-      final response = await _dio.get(
-        '/users/$userId',
-        options: Options(headers: {'Authorization': 'Bearer $token'}),
-      );
+      final response = await _dio.get('/users/$userId');
       final userData = response.data['data'] ?? response.data;
       return User.fromMap(userData);
     } catch (e) {
@@ -139,13 +134,7 @@ class ApiAuthRepository implements AuthRepository {
   @override
   Future<List<User>> getAllUsers() async {
     try {
-      final token = await _getToken();
-      if (token == null) throw Exception('Yetkilendirme hatası');
-
-      final response = await _dio.get(
-        '/users',
-        options: Options(headers: {'Authorization': 'Bearer $token'}),
-      );
+      final response = await _dio.get('/users');
 
       final List<dynamic> data = response.data['data'] ?? response.data;
       return data.map((json) => User.fromMap(json)).toList();
@@ -156,7 +145,41 @@ class ApiAuthRepository implements AuthRepository {
 
   @override
   Future<List<User>> getStaffList() async {
-    final allUsers = await getAllUsers();
-    return allUsers.where((user) => user.role == UserRole.staff).toList();
+    final response = await _dio.get(
+      'users',
+      queryParameters: {'role': 'staff'},
+    );
+    final List<dynamic> data = response.data['data'] ?? response.data;
+    return data.map((json) => User.fromMap(json)).toList();
+  }
+
+  @override
+  Future<List<User>> getManagingList() async {
+    final response = await _dio.get(
+      'users',
+      queryParameters: {'role': 'managing'},
+    );
+    final List<dynamic> data = response.data['data'] ?? response.data;
+    return data.map((json) => User.fromMap(json)).toList();
+  }
+
+  @override
+  Future<List<User>> getCitizenList() async {
+    final response = await _dio.get(
+      'users',
+      queryParameters: {'role': 'citizen'},
+    );
+    final List<dynamic> data = response.data['data'] ?? response.data;
+    return data.map((json) => User.fromMap(json)).toList();
+  }
+
+  @override
+  Future<void> deleteUser(String userId) async {
+    await _dio.delete('users/$userId');
+  }
+
+  @override
+  Future<void> updateUserRole(String userId, String newRole) async {
+    await _dio.patch('/users/$userId/role', data: {'role': newRole});
   }
 }

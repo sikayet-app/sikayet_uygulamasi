@@ -112,4 +112,24 @@ class LocalAuthRepository implements AuthRepository {
     final allUsers = await getAllUsers();
     return allUsers.where((user) => user.role == UserRole.staff).toList();
   }
+
+  @override
+  Future<void> deleteUser(String userId) async {
+    throw UnimplementedError('Bu metot lokalde desteklenmiyor');
+  }
+
+  @override
+  Future<List<User>> getManagingList() async {
+    throw UnimplementedError('Bu metot lokalde desteklenmiyor');
+  }
+
+  @override
+  Future<List<User>> getCitizenList() async {
+    throw UnimplementedError('Bu metot lokalde desteklenmiyor');
+  }
+
+  @override
+  Future<void> updateUserRole(String userId, String newRole) async {
+    throw UnimplementedError('Bu metot lokalde desteklenmiyor');
+  }
 }
