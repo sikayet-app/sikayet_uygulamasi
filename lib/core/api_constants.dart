@@ -1,4 +1,4 @@
 class ApiConstants {
   static const String baseUrl =
-      'https://dave-road-talked-question.trycloudflare.com/api';
+      'https://rise-coalition-married-registration.trycloudflare.com/api';
 }

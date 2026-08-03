@@ -7,7 +7,7 @@ class LocalReportRepository implements ReportRepository {
   final DatabaseHelper _dbHelper = DatabaseHelper.instance;
 
   @override
-  Future<List<Report>> getReports() async {
+  Future<List<Report>> getReports({String? status, String? category}) async {
     final maps = await _dbHelper.getAllReports();
     return maps.map((map) => Report.fromMap(map)).toList();
   }
@@ -43,4 +43,7 @@ class LocalReportRepository implements ReportRepository {
 
   @override
   Future<void> assignReport(String reportId, String staffId) async {}
+
+  @override
+  Future<void> updateAssignedStaff(String reportId, String staffId) async {}
 }

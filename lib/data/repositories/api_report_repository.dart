@@ -31,9 +31,12 @@ class ApiReportRepository implements ReportRepository {
     );
   }
   @override
-  Future<List<Report>> getReports() async {
+  Future<List<Report>> getReports({String? status, String? category}) async {
+    final queryParams = <String,dynamic>{};
+    if(status != null) queryParams['status'] = status;
+    if(category!=null) queryParams['category'] = category;
     // Backend'deki index metodu pagination (sayfalama) ile 'data' içinde liste döner
-    final response = await _dio.get('/reports');
+    final response = await _dio.get('/reports', queryParameters: queryParams);
     final List<dynamic> data = response.data['data'];
     return data.map((json) => Report.fromMap(json)).toList();
   }
@@ -115,5 +118,13 @@ class ApiReportRepository implements ReportRepository {
   @override
   Future<void> assignReport(String reportId, String staffId) async {
     await _dio.patch('/reports/$reportId/assign', data: {'staff_id': staffId});
+  }
+
+  @override
+  Future<void> updateAssignedStaff(String reportId, String staffId) async {
+    await _dio.patch(
+      '/reports/$reportId/assign/update',
+      data: {'staff_id': staffId},
+    );
   }
 }

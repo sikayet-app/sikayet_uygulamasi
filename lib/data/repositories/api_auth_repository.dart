@@ -132,9 +132,11 @@ class ApiAuthRepository implements AuthRepository {
   }
 
   @override
-  Future<List<User>> getAllUsers() async {
+  Future<List<User>> getAllUsers({String? role}) async {
     try {
-      final response = await _dio.get('/users');
+      final queryParams = <String, dynamic>{};
+      if (role != null) queryParams['role'] = role;
+      final response = await _dio.get('/users', queryParameters: queryParams);
 
       final List<dynamic> data = response.data['data'] ?? response.data;
       return data.map((json) => User.fromMap(json)).toList();
@@ -146,7 +148,7 @@ class ApiAuthRepository implements AuthRepository {
   @override
   Future<List<User>> getStaffList() async {
     final response = await _dio.get(
-      'users',
+      '/users',
       queryParameters: {'role': 'staff'},
     );
     final List<dynamic> data = response.data['data'] ?? response.data;
@@ -156,7 +158,7 @@ class ApiAuthRepository implements AuthRepository {
   @override
   Future<List<User>> getManagingList() async {
     final response = await _dio.get(
-      'users',
+      '/users',
       queryParameters: {'role': 'managing'},
     );
     final List<dynamic> data = response.data['data'] ?? response.data;
@@ -166,7 +168,7 @@ class ApiAuthRepository implements AuthRepository {
   @override
   Future<List<User>> getCitizenList() async {
     final response = await _dio.get(
-      'users',
+      '/users',
       queryParameters: {'role': 'citizen'},
     );
     final List<dynamic> data = response.data['data'] ?? response.data;
@@ -180,6 +182,14 @@ class ApiAuthRepository implements AuthRepository {
 
   @override
   Future<void> updateUserRole(String userId, String newRole) async {
-    await _dio.patch('/users/$userId/role', data: {'role': newRole});
+    try {
+      await _dio.patch('/users/$userId/role', data: {'role': newRole});
+    } on DioException catch (e) {
+      final message =
+          e.response?.data['message'] ?? 'Kullancı rolü güncellenemdi.';
+      throw Exception(message);
+    } catch (e) {
+      throw Exception('Beklenmeyen bir hata oluştu: $e');
+    }
   }
 }

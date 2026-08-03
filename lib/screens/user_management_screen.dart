@@ -12,14 +12,119 @@ class UserManagementScreen extends ConsumerWidget {
     if (currentUser == null) return const SizedBox.shrink();
 
     final isAdmin = currentUser.role == UserRole.admin;
+    List<UserRole> allowedFilterRoles = [];
+    if (isAdmin) {
+      allowedFilterRoles = [
+        UserRole.managing,
+        UserRole.staff,
+        UserRole.citizen,
+      ];
+    } else {
+      allowedFilterRoles = [UserRole.staff, UserRole.citizen];
+    }
     final title = isAdmin ? 'Sorumlular' : 'Personeller';
 
     final listProvider = isAdmin ? managingListProvider : staffListProvider;
 
-    final userAsync = ref.watch(listProvider);
+    final userAsync = ref.watch(filteredUserListProvider);
 
     return Scaffold(
-      appBar: AppBar(title: Text(title)),
+      appBar: AppBar(
+        title: Text('Kullanıcı Yönetimi'),
+        actions: [
+          IconButton(
+            icon: Icon(Icons.filter_list),
+            onPressed: () {
+              showModalBottomSheet(
+                isScrollControlled: true,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+                ),
+                context: context,
+                builder: (context) {
+                  return Consumer(
+                    builder: (context, ref, child) {
+                      return Padding(
+                        padding: EdgeInsets.fromLTRB(
+                          24,
+                          24,
+                          24,
+                          MediaQuery.of(context).padding.bottom + 24,
+                        ),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'Filtrele',
+                              style: TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+                            const Text(
+                              'Kullanıcılar',
+                              style: TextStyle(fontWeight: FontWeight.w600),
+                            ),
+                            const SizedBox(height: 8),
+                            Wrap(
+                              spacing: 8.0, // yatay boşluk
+                              runSpacing:
+                                  8.0, // alt satıra geçerse dikey boşluk
+                              children: [
+                                FilterChip(
+                                  label: const Text('Tümü'),
+                                  selected:
+                                      ref.watch(filterUserProvider) == null,
+                                  onSelected: (_) {
+                                    ref
+                                            .read(filterUserProvider.notifier)
+                                            .state =
+                                        null;
+                                  },
+                                  backgroundColor: Colors.grey.withValues(
+                                    alpha: 0.1,
+                                  ),
+                                  selectedColor: Theme.of(
+                                    context,
+                                  ).primaryColor.withValues(alpha: 0.2),
+                                  side: BorderSide.none,
+                                ),
+                                ...allowedFilterRoles.map((role) {
+                                  final isSelected =
+                                      ref.watch(filterUserProvider) == role;
+                                  return FilterChip(
+                                    label: Text(getRoleLabel(role)),
+                                    selected: isSelected,
+                                    onSelected: (_) {
+                                      ref
+                                          .read(filterUserProvider.notifier)
+                                          .state = isSelected
+                                          ? null
+                                          : role;
+                                    },
+                                    backgroundColor: Colors.grey.withValues(
+                                      alpha: 0.1,
+                                    ),
+                                    selectedColor: Theme.of(
+                                      context,
+                                    ).primaryColor.withValues(alpha: 0.2),
+                                  );
+                                }).toList(),
+                              ],
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  );
+                },
+              );
+            },
+          ),
+        ],
+      ),
       body: userAsync.when(
         data: (users) {
           if (users.isEmpty) return const Center(child: Text('Liste boş'));
@@ -32,10 +137,9 @@ class UserManagementScreen extends ConsumerWidget {
             itemBuilder: (context, index) {
               final user = users[index];
               return Card(
-                color: Colors.grey.shade50,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
-                  side: BorderSide(color: Colors.grey.shade300),
+                  side: BorderSide(color: Colors.grey.withValues(alpha: 0.3)),
                 ),
                 elevation: 0,
                 child: ListTile(
@@ -44,6 +148,64 @@ class UserManagementScreen extends ConsumerWidget {
                     style: const TextStyle(fontWeight: FontWeight.bold),
                   ),
                   subtitle: Text(user.email),
+                  trailing: IconButton(
+                    icon: Icon(Icons.person_remove, color: Colors.red),
+                    onPressed: () {
+                      showDialog(
+                        context: context,
+                        builder: (context) {
+                          return AlertDialog(
+                            title: const Text('Yetkiyi Al'),
+                            content: Text(
+                              '${user.name} isimli kulllanıcının yetkisini almak istediğinize emin misiniz?',
+                            ),
+                            actions: [
+                              TextButton(
+                                onPressed: () {
+                                  Navigator.pop(context);
+                                },
+                                child: const Text('İptal'),
+                              ),
+                              TextButton(
+                                onPressed: () async {
+                                  try {
+                                    await ref
+                                        .read(authRepositoryProvider)
+                                        .updateUserRole(
+                                          user.id,
+                                          UserRole.citizen.name,
+                                        );
+                                    ref.invalidate(listProvider);
+                                    if (context.mounted) {
+                                      ScaffoldMessenger.of(
+                                        context,
+                                      ).showSnackBar(
+                                        const SnackBar(
+                                          content: Text(
+                                            'Kullanıcı rolü başarıyla güncellendi',
+                                          ),
+                                        ),
+                                      );
+                                      Navigator.pop(context);
+                                    }
+                                  } catch (e) {
+                                    if (context.mounted) {
+                                      ScaffoldMessenger.of(
+                                        context,
+                                      ).showSnackBar(
+                                        SnackBar(content: Text('Hata: $e')),
+                                      );
+                                    }
+                                  }
+                                },
+                                child: const Text('Onayla'),
+                              ),
+                            ],
+                          );
+                        },
+                      );
+                    },
+                  ),
                   leading: CircleAvatar(child: Icon(Icons.person)),
                 ),
               );
@@ -108,6 +270,10 @@ class _CitizenSelectionSheetState extends ConsumerState<CitizenSelectionSheet> {
             SizedBox(height: 16),
             // arama çubuğu
             TextField(
+              decoration: InputDecoration(
+                hintText: 'İsim ara',
+                prefixIcon: Icon(Icons.search),
+              ),
               onChanged: (value) {
                 setState(() {
                   _searchQuery = value;
@@ -133,10 +299,11 @@ class _CitizenSelectionSheetState extends ConsumerState<CitizenSelectionSheet> {
                         itemBuilder: (context, index) {
                           final user = filteredUsers[index];
                           return Card(
-                            color: Colors.grey.shade50,
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(12),
-                              side: BorderSide(color: Colors.grey.shade300),
+                              side: BorderSide(
+                                color: Colors.grey.withValues(alpha: 0.3),
+                              ),
                             ),
                             elevation: 0,
                             child: ListTile(

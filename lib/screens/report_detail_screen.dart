@@ -6,7 +6,7 @@ import 'package:sikayet_uygulamasi/providers/report_provider.dart';
 import 'package:sikayet_uygulamasi/screens/create_report_screen.dart';
 import '../data/models/report.dart';
 import 'dart:io';
-import '../core/permission.dart';
+
 import '../data/models/user.dart';
 
 class ReportDetailScreen extends ConsumerStatefulWidget {
@@ -162,16 +162,14 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
   Widget build(BuildContext context) {
     final currentUser = ref.watch(currentUserProvider);
     if (currentUser == null) return const SizedBox.shrink();
-    final canEdit = canEditReport(_currentReport, currentUser);
+    final canEdit = _currentReport.canEditReport;
     final canDelete = _currentReport.canDeleteReport;
-    final canChangeStatus = canUpdateStatus(_currentReport, currentUser);
-    final canAssign = canAssignReport(currentUser.role);
+    final canChangeStatus = _currentReport.canUpdateStatus;
+    final canAssign = _currentReport.canAssignReport;
     return Scaffold(
-      backgroundColor: Colors.white,
       appBar: AppBar(
         elevation: 0,
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black,
+
         actions: [
           if (canEdit)
             IconButton(
@@ -261,7 +259,7 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
                   const SizedBox(height: 16),
                   Row(
                     children: [
-                      Icon(Icons.access_time,size: 16, color: Colors.grey),
+                      Icon(Icons.access_time, size: 16, color: Colors.grey),
                       SizedBox(width: 6),
                       Text(
                         getFormattedDate(_currentReport.createdAt),
@@ -273,7 +271,6 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
                     Text(
                       'Gönderen: ${_currentReport.senderName ?? "Bilinmiyor"}',
                       style: TextStyle(
-                        color: Colors.grey[700],
                         fontSize: 14,
                         fontStyle: FontStyle.italic,
                       ),
@@ -283,11 +280,7 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
                   ],
                   Text(
                     _currentReport.description,
-                    style: TextStyle(
-                      fontSize: 16,
-                      height: 1.6,
-                      color: Colors.grey.shade800,
-                    ),
+                    style: TextStyle(fontSize: 16, height: 1.6),
                   ),
                   const SizedBox(height: 24),
 
@@ -299,7 +292,7 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
                           vertical: 6,
                         ),
                         decoration: BoxDecoration(
-                          color: Colors.grey[200],
+                          color: Colors.grey.withValues(alpha: 0.2),
                           borderRadius: BorderRadius.circular(20),
                         ),
                         child: Text(getCategoryLabel(_currentReport.category)),
@@ -385,9 +378,11 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
                     Container(
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
-                        color: Colors.blueGrey[50],
+                        color: Colors.blueGrey.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: Colors.blueGrey[200]!),
+                        border: Border.all(
+                          color: Colors.blueGrey.withValues(alpha: 0.3),
+                        ),
                       ),
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -401,7 +396,6 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
                                   style: TextStyle(
                                     fontSize: 12,
                                     fontWeight: FontWeight.bold,
-                                    color: Colors.blueGrey[700],
                                   ),
                                 ),
                                 const SizedBox(height: 4),
@@ -410,15 +404,15 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
                                       'Henüz personel atanmadı',
                                   style: TextStyle(
                                     fontSize: 16,
-                                    color:
-                                        _currentReport.assignedStaffId != null
-                                        ? Colors.black87
-                                        : Colors.grey[600],
+
                                     fontStyle:
                                         _currentReport.assignedStaffId != null
                                         ? FontStyle.normal
                                         : FontStyle.italic,
-                                    fontWeight: FontWeight.w500,
+                                    fontWeight:
+                                        _currentReport.assignedStaffId != null
+                                        ? FontWeight.bold
+                                        : FontWeight.w500,
                                   ),
                                 ),
                               ],
@@ -449,13 +443,22 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
                                 // iptal edilmediyse api ye gönder
                                 if (selectedStaff != null) {
                                   try {
-                                    await ref
-                                        .read(reportRepositoryProvider)
-                                        .assignReport(
-                                          _currentReport.id,
-                                          selectedStaff.id,
-                                        );
-
+                                    if (_currentReport.assignedStaffId ==
+                                        null) {
+                                      await ref
+                                          .read(reportRepositoryProvider)
+                                          .assignReport(
+                                            _currentReport.id,
+                                            selectedStaff.id,
+                                          );
+                                    } else {
+                                      await ref
+                                          .read(reportRepositoryProvider)
+                                          .updateAssignedStaff(
+                                            _currentReport.id,
+                                            selectedStaff.id,
+                                          );
+                                    }
                                     setState(() {
                                       _currentReport = _currentReport.copyWith(
                                         assignedStaffId: selectedStaff.id,
@@ -502,16 +505,15 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
                     Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: Colors.grey[100],
+                        color: Colors.grey.withValues(alpha: 0.15),
                         borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: Colors.grey[300]!),
+                        border: Border.all(
+                          color: Colors.grey.withValues(alpha: 0.3),
+                        ),
                       ),
                       child: Text(
                         'Not: ${_currentReport.resolutionNote}',
-                        style: TextStyle(
-                          color: Colors.grey[800],
-                          fontStyle: FontStyle.italic,
-                        ),
+                        style: TextStyle(fontStyle: FontStyle.italic),
                       ),
                     ),
                   ],

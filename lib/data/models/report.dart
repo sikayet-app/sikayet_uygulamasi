@@ -18,6 +18,9 @@ class Report {
   final String? assignedStaffId;
   final String? assignedStaffName;
   final bool canDeleteReport;
+  final bool canEditReport;
+  final bool canUpdateStatus;
+  final bool canAssignReport;
 
   Report({
     required this.id,
@@ -36,6 +39,9 @@ class Report {
     this.assignedStaffId,
     this.assignedStaffName,
     this.canDeleteReport = false,
+    this.canEditReport = false,
+    this.canAssignReport = false,
+    this.canUpdateStatus = false,
   });
 
   // şikayetin durumunu çözüldü yapmak istediğimizde, eski şikayetin tüm verilerini al sadece durumunu değiştiren yeni bir nesne oluştur.
@@ -55,6 +61,9 @@ class Report {
     String? assignedStaffId,
     String? assignedStaffName,
     bool? canDeleteReport,
+    bool? canEditReport,
+    bool? canAssignReport,
+    bool? canUpdateStatus,
   }) {
     return Report(
       id: id ?? this.id,
@@ -72,6 +81,9 @@ class Report {
       assignedStaffId: assignedStaffId ?? this.assignedStaffId,
       assignedStaffName: assignedStaffName ?? this.assignedStaffName,
       canDeleteReport: canDeleteReport ?? this.canDeleteReport,
+      canEditReport: canEditReport ?? this.canEditReport,
+      canUpdateStatus: canUpdateStatus ?? this.canUpdateStatus,
+      canAssignReport: canAssignReport ?? this.canAssignReport,
     );
   }
 
@@ -108,7 +120,7 @@ class Report {
     String? assignedStaffId =
         map['assigned_staff_id']?.toString() ??
         map['assignedStaffId']?.toString();
-    String? assignedStaffName = map['assignedStaffName'];
+    String? assignedStaffName = map['assignedStaffName'] as String?;
 
     // eğer backend den assigned staff objesi geliyorsa ismi o objenin içinden çek
     if (map['assigned_staff'] != null && map['assigned_staff'] is Map) {
@@ -137,7 +149,10 @@ class Report {
       resolutionNote: resolutionNote,
       assignedStaffId: assignedStaffId,
       assignedStaffName: assignedStaffName,
-      canDeleteReport: map['can_delete_report'] as bool ?? false,
+      canDeleteReport: map['can_delete_report'] as bool? ?? false,
+      canEditReport: map['can_edit_report'] as bool? ?? false,
+      canUpdateStatus: map['can_update_status'] as bool? ?? false,
+      canAssignReport: map['can_assign_report'] as bool? ?? false,
     );
   }
 

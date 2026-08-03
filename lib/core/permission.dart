@@ -1,9 +1,11 @@
+/*
 import '../data/models/user.dart';
 import '../data/models/report.dart';
 
 bool canViewAllReports(UserRole role) {
   return role == UserRole.admin || role == UserRole.managing;
 }
+
 
 bool canEditReport(Report report, User currentUser) {
   if (currentUser.role == UserRole.citizen) {
@@ -13,7 +15,7 @@ bool canEditReport(Report report, User currentUser) {
   return false;
 }
 
-/*bool canDeleteReport(Report report, User currentUser) {
+bool canDeleteReport(Report report, User currentUser) {
   // sistem yöneticisi her şeyi silebilir
   if (currentUser.role == UserRole.admin) return true;
   // sorumlu,gereksiz ve saçma şikayetleri silebilir.
@@ -24,7 +26,7 @@ bool canEditReport(Report report, User currentUser) {
         report.status == ReportStatus.pending;
   }
   return false;
-}*/
+
 
 bool canUpdateStatus(Report report, User currentUser) {
   // sorumlu herkesin durumunu güncelleyebilir
@@ -39,6 +41,7 @@ bool canUpdateStatus(Report report, User currentUser) {
 bool canAssignReport(UserRole role) {
   return role == UserRole.managing;
 }
+
 
 bool canViewUsers(UserRole role) {
   return role == UserRole.admin || role == UserRole.managing;
@@ -55,3 +58,4 @@ bool canViewAssignedReportsOnly(UserRole role) {
 bool canCreateReport(UserRole role) {
   return role == UserRole.citizen;
 }
+}*/

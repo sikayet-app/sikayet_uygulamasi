@@ -16,7 +16,7 @@ abstract class AuthRepository {
   });
   Future<User?> getCurrentUser();
   Future<void> logout();
-  Future<List<User>> getAllUsers();
+  Future<List<User>> getAllUsers({String? role});
   Future<User?> getUserById(String userId);
   Future<List<User>> getStaffList();
   Future<List<User>> getManagingList();

@@ -94,7 +94,7 @@ class LocalAuthRepository implements AuthRepository {
   }
 
   @override
-  Future<List<User>> getAllUsers() async {
+  Future<List<User>> getAllUsers({String? role}) async {
     final db = await DatabaseHelper.instance.database;
     final result = await db.rawQuery('SELECT * FROM users');
     return result.map((map) => User.fromMap(map)).toList();

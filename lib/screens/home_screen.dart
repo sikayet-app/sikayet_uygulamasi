@@ -52,7 +52,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final reportAsync = ref.watch(visibleReportListProvider);
+    final reportAsync = ref.watch(filteredReportListProvider);
     return Scaffold(
       body: reportAsync.when(
         data: (reports) => Stack(
@@ -193,7 +193,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     : Container(
                         decoration: BoxDecoration(
                           borderRadius: BorderRadius.circular(8),
-                          color: Colors.grey[200],
+                          color: Colors.grey.withValues(alpha: 0.2),
                         ),
                         width: 80,
                         height: 80,
@@ -230,7 +230,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       ),
                       Text(
                         report.description,
-                        style: TextStyle(fontSize: 14, color: Colors.grey[700]),
+                        style: TextStyle(fontSize: 14),
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                       ),
@@ -249,7 +249,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   ),
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(20),
-                    color: Colors.grey[200],
+                    color: Colors.grey.withValues(alpha: 0.2),
                   ),
                   child: Text(
                     getCategoryLabel(report.category),

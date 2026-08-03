@@ -202,8 +202,7 @@ class _CreateReportScreenState extends ConsumerState<CreateReportScreen> {
       backgroundColor: Colors.white,
       appBar: AppBar(
         elevation: 0,
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black,
+        
         title: Text(
           widget.existingReport != null
               ? 'Bildirimi Düzenle'
@@ -222,14 +221,14 @@ class _CreateReportScreenState extends ConsumerState<CreateReportScreen> {
                   labelText: 'Başlık',
                   prefixIcon: Icon(Icons.title),
                   filled: true,
-                  fillColor: Colors.grey.shade50,
+                  fillColor: Colors.grey.withValues(alpha: 0.05),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(color: Colors.grey.shade300),
+                    borderSide: BorderSide(color: Colors.grey.withValues(alpha: 0.3)),
                   ),
                   enabledBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(color: Colors.grey.shade300),
+                    borderSide: BorderSide(color: Colors.grey.withValues(alpha: 0.3)),
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
@@ -256,18 +255,18 @@ class _CreateReportScreenState extends ConsumerState<CreateReportScreen> {
                   prefixIcon: Icon(Icons.description_outlined),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(color: Colors.grey.shade300),
+                    borderSide: BorderSide(color: Colors.grey.withValues(alpha: 0.3)),
                   ),
                   enabledBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(color: Colors.grey.shade300),
+                    borderSide: BorderSide(color: Colors.grey.withValues(alpha: 0.3)),
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
                     borderSide: BorderSide(color: primaryColor, width: 2),
                   ),
                   filled: true,
-                  fillColor: Colors.grey.shade50,
+                  fillColor: Colors.grey.withValues(alpha: 0.05),
                 ),
                 maxLines: 4,
                 validator: (value) {
@@ -332,7 +331,7 @@ class _CreateReportScreenState extends ConsumerState<CreateReportScreen> {
                                                 Container(
                                                   height: 100,
                                                   width: 100,
-                                                  color: Colors.grey[300],
+                                                  color: Colors.grey.withValues(alpha: 0.2),
                                                   child: const Icon(
                                                     Icons.broken_image,
                                                     color: Colors.grey,

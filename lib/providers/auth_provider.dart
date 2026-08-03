@@ -56,3 +56,12 @@ final citizenListProvider = FutureProvider<List<User>>((ref) async {
   final authRepo = ref.watch(authRepositoryProvider);
   return authRepo.getCitizenList();
 });
+
+final filterUserProvider = StateProvider<UserRole?>((ref) => null);
+
+final filteredUserListProvider = FutureProvider<List<User>>((ref) async {
+  final authRepo = ref.watch(authRepositoryProvider);
+  final selectedRole = ref.watch(filterUserProvider);
+  return authRepo.getAllUsers(role: selectedRole?.name);
+});
+

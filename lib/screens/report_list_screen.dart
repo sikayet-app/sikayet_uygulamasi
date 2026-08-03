@@ -15,12 +15,162 @@ class ReportListScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final reportAsync = ref.watch(visibleReportListProvider);
+    final reportAsync = ref.watch(filteredReportListProvider);
     final currentUser = ref.watch(currentUserProvider);
     final showSenderInfo =
         currentUser != null && currentUser.role != UserRole.citizen;
     return Scaffold(
-      appBar: AppBar(title: const Text('Şikayet Listesi')),
+      appBar: AppBar(
+        title: const Text('Şikayet Listesi'),
+        actions: [
+          IconButton(
+            onPressed: () {
+              showModalBottomSheet(
+                context: context,
+                isScrollControlled: true,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+                ), // sadece üst köşeler yuvarlak oldu
+                builder: (context) {
+                  return Consumer(
+                    builder: (context, ref, child) {
+                      return Padding(
+                        padding: EdgeInsets.fromLTRB(
+                          24,
+                          24,
+                          24,
+                          MediaQuery.of(context).padding.bottom + 24,
+                        ),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'Filtrele',
+                              style: TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+                            const Text(
+                              'Durum',
+                              style: TextStyle(fontWeight: FontWeight.w600),
+                            ),
+                            const SizedBox(height: 8),
+                            Wrap(
+                              spacing: 8.0, // yatay boşluk
+                              runSpacing:
+                                  8.0, // alt satıra geçerse dikey boşluk
+                              children: [
+                                FilterChip(
+                                  label: const Text('Tümü'),
+                                  selected:
+                                      ref.watch(filterStatusProvider) == null,
+                                  onSelected: (_) {
+                                    ref
+                                            .read(filterStatusProvider.notifier)
+                                            .state =
+                                        null;
+                                  },
+                                  backgroundColor: Colors.grey.withValues(
+                                    alpha: 0.1,
+                                  ),
+                                  selectedColor: Theme.of(
+                                    context,
+                                  ).primaryColor.withValues(alpha: 0.2),
+                                  side: BorderSide.none,
+                                ),
+                                ...ReportStatus.values.map((status) {
+                                  final isSelected =
+                                      ref.watch(filterStatusProvider) == status;
+
+                                  return FilterChip(
+                                    label: Text(getStatusLabel(status)),
+                                    selected: isSelected,
+                                    onSelected: (_) {
+                                      ref
+                                          .read(filterStatusProvider.notifier)
+                                          .state = isSelected
+                                          ? null
+                                          : status;
+                                    },
+                                    backgroundColor: Colors.grey.withValues(
+                                      alpha: 0.1,
+                                    ),
+                                    selectedColor: Theme.of(
+                                      context,
+                                    ).primaryColor.withValues(alpha: 0.2),
+                                  );
+                                }).toList(),
+                              ],
+                            ),
+                            const SizedBox(height: 16),
+                            const Text(
+                              'Kategori',
+                              style: TextStyle(fontWeight: FontWeight.w600),
+                            ),
+                            Wrap(
+                              spacing: 8.0,
+                              runSpacing: 8.0,
+                              children: [
+                                FilterChip(
+                                  label: Text('Tüm Kategoriler'),
+                                  selected:
+                                      ref.watch(filterCategoryProvider) == null,
+                                  onSelected: (_) {
+                                    ref
+                                            .read(
+                                              filterCategoryProvider.notifier,
+                                            )
+                                            .state =
+                                        null;
+                                  },
+                                  backgroundColor: Colors.grey.withValues(
+                                    alpha: 0.1,
+                                  ),
+                                  selectedColor: Theme.of(
+                                    context,
+                                  ).primaryColor.withValues(alpha: 0.2),
+                                  side: BorderSide.none,
+                                ),
+                                ...ReportCategory.values.map((category) {
+                                  final isSelected =
+                                      ref.watch(filterCategoryProvider) ==
+                                      category;
+                                  return FilterChip(
+                                    label: Text(getCategoryLabel(category)),
+                                    selected: isSelected,
+                                    onSelected: (_) {
+                                      ref
+                                          .read(filterCategoryProvider.notifier)
+                                          .state = isSelected
+                                          ? null
+                                          : category;
+                                    },
+                                    backgroundColor: Colors.grey.withValues(
+                                      alpha: 0.1,
+                                    ),
+                                    selectedColor: Theme.of(
+                                      context,
+                                    ).primaryColor.withValues(alpha: 0.2),
+                                    side: BorderSide.none,
+                                  );
+                                }).toList(),
+                              ],
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  );
+                },
+              );
+            },
+            icon: Icon(Icons.filter_list),
+          ),
+        ],
+      ),
       body: reportAsync.when(
         data: (reports) {
           if (reports.isEmpty) {
@@ -108,7 +258,7 @@ class ReportListScreen extends ConsumerWidget {
                             : Container(
                                 decoration: BoxDecoration(
                                   borderRadius: BorderRadius.circular(8),
-                                  color: Colors.grey[200],
+                                  color: Colors.grey.withValues(alpha: 0.2),
                                 ),
                                 width: 50,
                                 height: 50,
@@ -133,7 +283,7 @@ class ReportListScreen extends ConsumerWidget {
                                 report.description,
                                 maxLines: 2,
                                 overflow: TextOverflow.ellipsis,
-                                style: TextStyle(color: Colors.grey[600]),
+                                style: TextStyle(),
                               ),
 
                               SizedBox(height: 6),
@@ -146,7 +296,7 @@ class ReportListScreen extends ConsumerWidget {
                                       vertical: 6,
                                     ),
                                     decoration: BoxDecoration(
-                                      color: Colors.grey[200],
+                                      color: Colors.grey.withValues(alpha: 0.2),
                                       borderRadius: BorderRadius.circular(20),
                                     ),
                                     child: Text(
@@ -174,7 +324,6 @@ class ReportListScreen extends ConsumerWidget {
                                 Text(
                                   'Gönderen: $senderName',
                                   style: TextStyle(
-                                    color: Colors.grey[700],
                                     fontSize: 13,
                                     fontStyle: FontStyle.italic,
                                   ),

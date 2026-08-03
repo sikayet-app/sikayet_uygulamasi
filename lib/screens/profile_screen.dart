@@ -46,8 +46,8 @@ class ProfileScreen extends ConsumerWidget {
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
               decoration: BoxDecoration(
                 color: user.role == UserRole.admin
-                    ? Colors.red[100]
-                    : Colors.blue[100],
+                    ? Colors.red.withValues(alpha: 0.15)
+                    : Colors.blue.withValues(alpha: 0.15),
                 borderRadius: BorderRadius.circular(20),
               ),
               child: Text(
@@ -65,10 +65,7 @@ class ProfileScreen extends ConsumerWidget {
               alignment: Alignment.centerLeft,
               child: Text(
                 'Uygulama Ayarları',
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  color: Colors.grey[700],
-                ),
+                style: TextStyle(fontWeight: FontWeight.bold),
               ),
             ),
             SizedBox(height: 12),
