@@ -6,7 +6,7 @@ import 'package:sikayet_uygulamasi/providers/report_provider.dart';
 import 'package:sikayet_uygulamasi/screens/create_report_screen.dart';
 import '../data/models/report.dart';
 import 'dart:io';
-
+import 'package:flutter/foundation.dart'; // kIsWeb kullanmayı sağlar.
 import '../data/models/user.dart';
 
 class ReportDetailScreen extends ConsumerStatefulWidget {
@@ -48,14 +48,15 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
         );
       },
     );
+
     if (confirm != true) return;
     if (!context.mounted) return;
 
-    //hatayı ekrana yansıtmak için
     try {
       //onaylandıysa sil
       await ref.read(reportRepositoryProvider).deleteReport(_currentReport.id);
       ref.invalidate(reportListProvider);
+
       //detay sayfasından çık
       if (context.mounted) {
         Navigator.pop(context);
@@ -77,6 +78,7 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
 
   Future<String?> _showNoteDialog(ReportStatus newStatus) async {
     final controller = TextEditingController();
+
     final String? note = await showDialog<String>(
       context: context,
       builder: (BuildContext dialogContext) {
@@ -91,8 +93,7 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
           ),
           actions: [
             TextButton(
-              onPressed: () =>
-                  Navigator.pop(dialogContext, null), // iptal seçeneği
+              onPressed: () => Navigator.pop(dialogContext, null),
               child: const Text('İptal'),
             ),
             ElevatedButton(
@@ -108,7 +109,7 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
 
   Future<User?> _showAssignDialog() async {
     final staffList = await ref.read(authRepositoryProvider).getStaffList();
-    // Eğer sistemde hiç personel yoksa, boş liste göstermek yerine uyarı verip işlemi durdur
+
     if (staffList.isEmpty) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -120,19 +121,17 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
       return null;
     }
 
-    //Ekranda seçim penceresini (Dialog) aç
     if (!context.mounted) return null;
+
     return showDialog<User>(
       context: context,
       builder: (BuildContext dialogContext) {
         return AlertDialog(
           title: const Text('Personel Seçin'),
-          // İçeriğin ekrandan taşmasını önlemek için SizedBox ile genişliği sınırlandır
           content: SizedBox(
             width: double.maxFinite,
             child: ListView.builder(
-              shrinkWrap:
-                  true, // Listenin sadece elemanları kadar yer kaplamasını sağlar
+              shrinkWrap: true,
               itemCount: staffList.length,
               itemBuilder: (context, index) {
                 final staff = staffList[index];
@@ -162,14 +161,20 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
   Widget build(BuildContext context) {
     final currentUser = ref.watch(currentUserProvider);
     if (currentUser == null) return const SizedBox.shrink();
+
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
     final canEdit = _currentReport.canEditReport;
     final canDelete = _currentReport.canDeleteReport;
     final canChangeStatus = _currentReport.canUpdateStatus;
     final canAssign = _currentReport.canAssignReport;
+
     return Scaffold(
       appBar: AppBar(
+        title: const Text('Şikayet Detayı'),
+        centerTitle: true,
         elevation: 0,
-
         actions: [
           if (canEdit)
             IconButton(
@@ -181,7 +186,6 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
                         CreateReportScreen(existingReport: _currentReport),
                   ),
                 );
-                // eğer kullanıcı kaydetmeden geri çıkmadıysa ve dönen veri Report tipindeyse ekranı güncelle
                 if (updated != null && updated is Report) {
                   setState(() {
                     _currentReport = updated;
@@ -201,89 +205,71 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // DİNAMİK FOTOĞRAF ALANI
             if (_currentReport.imagePaths.isNotEmpty)
-              SizedBox(
-                height: 250,
-                width: double.infinity,
-                child: ListView.builder(
-                  scrollDirection: Axis.horizontal, // yatay kaydırma
-                  itemCount: _currentReport.imagePaths.length,
-                  itemBuilder: (context, index) {
-                    final image = _currentReport.imagePaths[index];
-                    return Padding(
-                      padding: const EdgeInsets.only(
-                        right: 4.0,
-                      ), // resimler arası
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(12),
-                        child: image.startsWith('http')
-                            ? Image.network(
-                                image,
-                                height: 320,
-                                width: 250,
-                                fit: BoxFit.cover,
-                                errorBuilder: (context, error, stackTrace) =>
-                                    Container(
-                                      height: 100,
-                                      width: 110,
-                                      color: Colors.grey[300],
-                                      child: const Icon(
-                                        Icons.broken_image,
-                                        color: Colors.grey,
-                                      ),
+              _currentReport.imagePaths.length == 1
+                  ? SizedBox(
+                      height: 250,
+                      width: double.infinity,
+                      child:
+                          _currentReport.imagePaths.first.startsWith('http') ||
+                              kIsWeb
+                          ? Image.network(
+                              _currentReport.imagePaths.first,
+                              fit: BoxFit.cover,
+                              errorBuilder: (context, error, stackTrace) =>
+                                  Container(
+                                    height: 250,
+                                    width: double.infinity,
+                                    color: colorScheme.surfaceContainerHighest,
+                                    child: Icon(
+                                      Icons.broken_image,
+                                      color: colorScheme.outline,
                                     ),
-                              )
-                            : Image.file(
-                                File(image),
-                                height: 100,
-                                width: 110,
-                                fit: BoxFit.cover,
+                                  ),
+                            )
+                          : Image.file(
+                              File(_currentReport.imagePaths.first),
+                              fit: BoxFit.cover,
+                            ),
+                    )
+                  : SizedBox(
+                      height: 200,
+                      child: ListView.builder(
+                        scrollDirection: Axis.horizontal,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 20,
+                          vertical: 8,
+                        ),
+                        itemCount: _currentReport.imagePaths.length,
+                        itemBuilder: (context, index) {
+                          final image = _currentReport.imagePaths[index];
+                          return Padding(
+                            padding: const EdgeInsets.only(right: 12.0),
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(12),
+                              child: SizedBox(
+                                width: 280,
+                                child: image.startsWith('http') || kIsWeb
+                                    ? Image.network(image, fit: BoxFit.cover)
+                                    : Image.file(
+                                        File(image),
+                                        fit: BoxFit.cover,
+                                      ),
                               ),
+                            ),
+                          );
+                        },
                       ),
-                    );
-                  },
-                ),
-              ),
+                    ),
+
+            // İÇERİK ALANI
             Padding(
               padding: const EdgeInsets.all(20.0),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    _currentReport.title,
-                    style: const TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  Row(
-                    children: [
-                      Icon(Icons.access_time, size: 16, color: Colors.grey),
-                      SizedBox(width: 6),
-                      Text(
-                        getFormattedDate(_currentReport.createdAt),
-                        style: TextStyle(color: Colors.grey),
-                      ),
-                    ],
-                  ),
-                  if (canChangeStatus) ...[
-                    Text(
-                      'Gönderen: ${_currentReport.senderName ?? "Bilinmiyor"}',
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontStyle: FontStyle.italic,
-                      ),
-                    ),
-
-                    const SizedBox(height: 12),
-                  ],
-                  Text(
-                    _currentReport.description,
-                    style: TextStyle(fontSize: 16, height: 1.6),
-                  ),
-                  const SizedBox(height: 24),
-
+                  // HİYERARŞİ 1: KATEGORİ VE DURUM ETİKETLERİ
                   Row(
                     children: [
                       Container(
@@ -292,12 +278,20 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
                           vertical: 6,
                         ),
                         decoration: BoxDecoration(
-                          color: Colors.grey.withValues(alpha: 0.2),
+                          color: colorScheme.surfaceContainerHighest.withValues(
+                            alpha: 0.5,
+                          ),
                           borderRadius: BorderRadius.circular(20),
                         ),
-                        child: Text(getCategoryLabel(_currentReport.category)),
+                        child: Text(
+                          getCategoryLabel(_currentReport.category),
+                          style: TextStyle(
+                            color: colorScheme.onSurfaceVariant,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
                       ),
-                      Spacer(),
+                      const Spacer(),
                       if (!canChangeStatus)
                         Container(
                           padding: const EdgeInsets.symmetric(
@@ -305,28 +299,29 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
                             vertical: 6,
                           ),
                           decoration: BoxDecoration(
-                            color: colorForStatus(_currentReport.status),
+                            color: colorForStatus(
+                              _currentReport.status,
+                            ).withValues(alpha: 0.15),
                             borderRadius: BorderRadius.circular(20),
                           ),
-                          child: Text(getStatusLabel(_currentReport.status)),
+                          child: Text(
+                            getStatusLabel(_currentReport.status),
+                            style: TextStyle(
+                              color: colorForStatus(_currentReport.status),
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
                         ),
-
-                      // yöneticiyse tıklanabilir olacak
                       if (canChangeStatus)
                         PopupMenuButton<ReportStatus>(
-                          // seçim yapıldığında çalışacak mantık
                           onSelected: (ReportStatus newStatus) async {
                             String? note;
-
-                            //çözüldü,reddedildi veya asılsız seçildiğinde not sor
                             if (newStatus == ReportStatus.resolved ||
                                 newStatus == ReportStatus.rejected ||
                                 newStatus == ReportStatus.invalid) {
                               note = await _showNoteDialog(newStatus);
-
                               if (note == null) return;
                             }
-
                             await ref
                                 .read(reportRepositoryProvider)
                                 .updateStatusWithNote(
@@ -334,7 +329,6 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
                                   newStatus,
                                   note,
                                 );
-                            // ekranı anında güncelle
                             setState(() {
                               _currentReport = _currentReport.copyWith(
                                 status: newStatus,
@@ -343,7 +337,6 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
                             });
                             ref.invalidate(reportListProvider);
                           },
-                          // menüdeki seçenekleri oluştur
                           itemBuilder: (context) =>
                               ReportStatus.values.map((status) {
                                 return PopupMenuItem(
@@ -351,37 +344,111 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
                                   child: Text(getStatusLabel(status)),
                                 );
                               }).toList(),
-                          // ekranda görünen tıklanabilir çip
                           child: Container(
                             padding: const EdgeInsets.symmetric(
                               horizontal: 12,
                               vertical: 6,
                             ),
                             decoration: BoxDecoration(
-                              color: colorForStatus(_currentReport.status),
+                              color: colorForStatus(
+                                _currentReport.status,
+                              ).withValues(alpha: 0.15),
                               borderRadius: BorderRadius.circular(20),
                             ),
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                Text(getStatusLabel(_currentReport.status)),
+                                Text(
+                                  getStatusLabel(_currentReport.status),
+                                  style: TextStyle(
+                                    color: colorForStatus(
+                                      _currentReport.status,
+                                    ),
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
                                 const SizedBox(width: 4),
-                                const Icon(Icons.arrow_drop_down, size: 18),
+                                Icon(
+                                  Icons.arrow_drop_down,
+                                  size: 18,
+                                  color: colorForStatus(_currentReport.status),
+                                ),
                               ],
                             ),
                           ),
                         ),
                     ],
                   ),
+
+                  const SizedBox(height: 16),
+
+                  // HİYERARŞİ 2: BAŞLIK VE TARİH
+                  Text(
+                    _currentReport.title,
+                    style: const TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                      height: 1.2,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.access_time,
+                        size: 16,
+                        color: colorScheme.outline,
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        getFormattedDate(_currentReport.createdAt),
+                        style: TextStyle(color: colorScheme.outline),
+                      ),
+                    ],
+                  ),
+
+                  if (canChangeStatus) ...[
+                    const SizedBox(height: 8),
+                    Text(
+                      'Gönderen: ${_currentReport.senderName ?? "Bilinmiyor"}',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontStyle: FontStyle.italic,
+                        color: colorScheme.outline,
+                      ),
+                    ),
+                  ],
+
                   const SizedBox(height: 24),
+
+                  Divider(
+                    height: 32,
+                    color: colorScheme.outline.withValues(alpha: 0.2),
+                  ),
+
+                  // HİYERARŞİ 3: AÇIKLAMA METNİ
+                  Text(
+                    _currentReport.description,
+                    style: TextStyle(
+                      fontSize: 16,
+                      height: 1.6,
+                      color: colorScheme.onSurface,
+                    ),
+                  ),
+
+                  const SizedBox(height: 32),
+
+                  // HİYERARŞİ 4: ATAMA VE NOT BÖLÜMÜ
                   if (_currentReport.assignedStaffId != null || canAssign) ...[
                     Container(
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
-                        color: Colors.blueGrey.withValues(alpha: 0.1),
+                        color: colorScheme.surfaceContainerHighest.withValues(
+                          alpha: 0.3,
+                        ),
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(
-                          color: Colors.blueGrey.withValues(alpha: 0.3),
+                          color: colorScheme.outline.withValues(alpha: 0.2),
                         ),
                       ),
                       child: Row(
@@ -396,6 +463,7 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
                                   style: TextStyle(
                                     fontSize: 12,
                                     fontWeight: FontWeight.bold,
+                                    color: colorScheme.primary,
                                   ),
                                 ),
                                 const SizedBox(height: 4),
@@ -404,7 +472,6 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
                                       'Henüz personel atanmadı',
                                   style: TextStyle(
                                     fontSize: 16,
-
                                     fontStyle:
                                         _currentReport.assignedStaffId != null
                                         ? FontStyle.normal
@@ -419,12 +486,7 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
                             ),
                           ),
                           if (canAssign)
-                            ElevatedButton.icon(
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.blueGrey[700],
-                                foregroundColor: Colors.white,
-                                elevation: 0,
-                              ),
+                            FilledButton.icon(
                               icon: Icon(
                                 _currentReport.assignedStaffId != null
                                     ? Icons.edit
@@ -437,10 +499,7 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
                                     : 'Ata',
                               ),
                               onPressed: () async {
-                                // seçilen user nesnesini dialogdan al
                                 final selectedStaff = await _showAssignDialog();
-
-                                // iptal edilmediyse api ye gönder
                                 if (selectedStaff != null) {
                                   try {
                                     if (_currentReport.assignedStaffId ==
@@ -466,7 +525,6 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
                                       );
                                     });
                                     ref.invalidate(reportListProvider);
-
                                     if (context.mounted) {
                                       ScaffoldMessenger.of(
                                         context,
@@ -501,19 +559,48 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
                   ],
                   if (_currentReport.resolutionNote != null &&
                       _currentReport.resolutionNote!.isNotEmpty) ...[
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 16),
                     Container(
-                      padding: const EdgeInsets.all(12),
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
-                        color: Colors.grey.withValues(alpha: 0.15),
-                        borderRadius: BorderRadius.circular(8),
+                        color: colorScheme.surfaceContainerHighest.withValues(
+                          alpha: 0.5,
+                        ),
+                        borderRadius: BorderRadius.circular(12),
                         border: Border.all(
-                          color: Colors.grey.withValues(alpha: 0.3),
+                          color: colorScheme.outline.withValues(alpha: 0.2),
                         ),
                       ),
-                      child: Text(
-                        'Not: ${_currentReport.resolutionNote}',
-                        style: TextStyle(fontStyle: FontStyle.italic),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Icon(
+                                Icons.info_outline,
+                                size: 18,
+                                color: colorScheme.primary,
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                'Çözüm Notu',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  color: colorScheme.primary,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            _currentReport.resolutionNote!,
+                            style: const TextStyle(
+                              fontStyle: FontStyle.italic,
+                              height: 1.5,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ],

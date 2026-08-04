@@ -1,5 +1,5 @@
 import 'dart:io';
-
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart';
@@ -21,155 +21,26 @@ class ReportListScreen extends ConsumerWidget {
         currentUser != null && currentUser.role != UserRole.citizen;
     return Scaffold(
       appBar: AppBar(
+        elevation: 2,
+        shadowColor: Colors.black.withValues(alpha: 0.3),
+        centerTitle: true,
         title: const Text('Şikayet Listesi'),
         actions: [
-          IconButton(
-            onPressed: () {
-              showModalBottomSheet(
-                context: context,
-                isScrollControlled: true,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-                ), // sadece üst köşeler yuvarlak oldu
-                builder: (context) {
-                  return Consumer(
-                    builder: (context, ref, child) {
-                      return Padding(
-                        padding: EdgeInsets.fromLTRB(
-                          24,
-                          24,
-                          24,
-                          MediaQuery.of(context).padding.bottom + 24,
-                        ),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text(
-                              'Filtrele',
-                              style: TextStyle(
-                                fontSize: 20,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            const SizedBox(height: 16),
-                            const Text(
-                              'Durum',
-                              style: TextStyle(fontWeight: FontWeight.w600),
-                            ),
-                            const SizedBox(height: 8),
-                            Wrap(
-                              spacing: 8.0, // yatay boşluk
-                              runSpacing:
-                                  8.0, // alt satıra geçerse dikey boşluk
-                              children: [
-                                FilterChip(
-                                  label: const Text('Tümü'),
-                                  selected:
-                                      ref.watch(filterStatusProvider) == null,
-                                  onSelected: (_) {
-                                    ref
-                                            .read(filterStatusProvider.notifier)
-                                            .state =
-                                        null;
-                                  },
-                                  backgroundColor: Colors.grey.withValues(
-                                    alpha: 0.1,
-                                  ),
-                                  selectedColor: Theme.of(
-                                    context,
-                                  ).primaryColor.withValues(alpha: 0.2),
-                                  side: BorderSide.none,
-                                ),
-                                ...ReportStatus.values.map((status) {
-                                  final isSelected =
-                                      ref.watch(filterStatusProvider) == status;
-
-                                  return FilterChip(
-                                    label: Text(getStatusLabel(status)),
-                                    selected: isSelected,
-                                    onSelected: (_) {
-                                      ref
-                                          .read(filterStatusProvider.notifier)
-                                          .state = isSelected
-                                          ? null
-                                          : status;
-                                    },
-                                    backgroundColor: Colors.grey.withValues(
-                                      alpha: 0.1,
-                                    ),
-                                    selectedColor: Theme.of(
-                                      context,
-                                    ).primaryColor.withValues(alpha: 0.2),
-                                  );
-                                }).toList(),
-                              ],
-                            ),
-                            const SizedBox(height: 16),
-                            const Text(
-                              'Kategori',
-                              style: TextStyle(fontWeight: FontWeight.w600),
-                            ),
-                            Wrap(
-                              spacing: 8.0,
-                              runSpacing: 8.0,
-                              children: [
-                                FilterChip(
-                                  label: Text('Tüm Kategoriler'),
-                                  selected:
-                                      ref.watch(filterCategoryProvider) == null,
-                                  onSelected: (_) {
-                                    ref
-                                            .read(
-                                              filterCategoryProvider.notifier,
-                                            )
-                                            .state =
-                                        null;
-                                  },
-                                  backgroundColor: Colors.grey.withValues(
-                                    alpha: 0.1,
-                                  ),
-                                  selectedColor: Theme.of(
-                                    context,
-                                  ).primaryColor.withValues(alpha: 0.2),
-                                  side: BorderSide.none,
-                                ),
-                                ...ReportCategory.values.map((category) {
-                                  final isSelected =
-                                      ref.watch(filterCategoryProvider) ==
-                                      category;
-                                  return FilterChip(
-                                    label: Text(getCategoryLabel(category)),
-                                    selected: isSelected,
-                                    onSelected: (_) {
-                                      ref
-                                          .read(filterCategoryProvider.notifier)
-                                          .state = isSelected
-                                          ? null
-                                          : category;
-                                    },
-                                    backgroundColor: Colors.grey.withValues(
-                                      alpha: 0.1,
-                                    ),
-                                    selectedColor: Theme.of(
-                                      context,
-                                    ).primaryColor.withValues(alpha: 0.2),
-                                    side: BorderSide.none,
-                                  );
-                                }).toList(),
-                              ],
-                            ),
-                          ],
-                        ),
-                      );
-                    },
-                  );
+          Builder(
+            builder: (context) {
+              return IconButton(
+                icon: Icon(Icons.filter_list),
+                onPressed: () {
+                  Scaffold.of(context).openEndDrawer();
                 },
               );
             },
-            icon: Icon(Icons.filter_list),
           ),
         ],
+      ),
+      endDrawer: Drawer(
+        backgroundColor: Theme.of(context).colorScheme.surface,
+        child: SafeArea(child: const FilterDrawerContent()),
       ),
       body: reportAsync.when(
         data: (reports) {
@@ -212,24 +83,54 @@ class ReportListScreen extends ConsumerWidget {
 
                   child: Padding(
                     padding: const EdgeInsets.all(12),
-                    child: Row(
+                    child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+                        Row(
+                          children: [
+                            Icon(Icons.label, color: Colors.grey),
+                            Text(getCategoryLabel(report.category)),
+                            Spacer(),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 6,
+                              ),
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(20),
+                                color: colorForStatus(
+                                  report.status,
+                                ).withValues(alpha: 0.15),
+                              ),
+                              child: Text(
+                                '${getStatusLabel(report.status)}',
+                                style: TextStyle(
+                                  color: colorForStatus(report.status),
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        SizedBox(height: 12),
                         report.imagePaths.isNotEmpty
                             ? ClipRRect(
                                 borderRadius: BorderRadius.circular(8),
                                 child:
-                                    report.imagePaths.first.startsWith('http')
+                                    report.imagePaths.first.startsWith(
+                                          'http',
+                                        ) ||
+                                        kIsWeb
                                     ? Image.network(
                                         report.imagePaths.first,
-                                        width: 50,
-                                        height: 50,
+                                        width: double.infinity,
+                                        height: 180,
                                         fit: BoxFit.cover,
                                         errorBuilder:
                                             (context, error, stackTrace) =>
                                                 Container(
-                                                  width: 50,
-                                                  height: 50,
+                                                  width: double.infinity,
+                                                  height: 180,
                                                   color: Colors.grey[300],
                                                   child: const Icon(
                                                     Icons.broken_image,
@@ -239,14 +140,14 @@ class ReportListScreen extends ConsumerWidget {
                                       )
                                     : Image.file(
                                         File(report.imagePaths.first),
-                                        width: 50,
-                                        height: 50,
+                                        width: double.infinity,
+                                        height: 180,
                                         fit: BoxFit.cover,
                                         errorBuilder:
                                             (context, error, stackTrace) =>
                                                 Container(
-                                                  width: 50,
-                                                  height: 50,
+                                                  width: double.infinity,
+                                                  height: 180,
                                                   color: Colors.grey[300],
                                                   child: const Icon(
                                                     Icons.broken_image,
@@ -260,77 +161,64 @@ class ReportListScreen extends ConsumerWidget {
                                   borderRadius: BorderRadius.circular(8),
                                   color: Colors.grey.withValues(alpha: 0.2),
                                 ),
-                                width: 50,
-                                height: 50,
+                                width: double.infinity,
+                                height: 180,
                                 child: Icon(Icons.report_problem),
                                 alignment: Alignment.center,
                               ),
 
-                        const SizedBox(width: 12),
+                        const SizedBox(height: 16),
 
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                report.title,
-                                style: Theme.of(context).textTheme.titleMedium,
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              report.title,
+                              style: TextStyle(
+                                fontWeight: FontWeight.w800,
+                                fontSize: 18,
                               ),
+                            ),
 
-                              SizedBox(height: 6),
+                            SizedBox(height: 8),
 
-                              Text(
-                                report.description,
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                                style: TextStyle(),
-                              ),
+                            Text(
+                              report.description,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(color: Colors.grey.shade700),
+                            ),
 
-                              SizedBox(height: 6),
-
-                              Row(
-                                children: [
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 12,
-                                      vertical: 6,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: Colors.grey.withValues(alpha: 0.2),
-                                      borderRadius: BorderRadius.circular(20),
-                                    ),
-                                    child: Text(
-                                      '${getCategoryLabel(report.category)}',
-                                    ),
+                            SizedBox(height: 12),
+                            Row(
+                              crossAxisAlignment: CrossAxisAlignment.center,
+                              children: [
+                                Icon(
+                                  Icons.location_on,
+                                  size: 14,
+                                  color: Colors.grey.shade600,
+                                ),
+                                Text(
+                                  'Bekleniyor',
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    color: Colors.grey.shade600,
                                   ),
-                                  SizedBox(width: 8),
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 12,
-                                      vertical: 6,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      borderRadius: BorderRadius.circular(20),
-                                      color: colorForStatus(report.status),
-                                    ),
-                                    child: Text(
-                                      '${getStatusLabel(report.status)}',
+                                ),
+                                if (showSenderInfo) ...[
+                                  Spacer(),
+                                  Text(
+                                    'Gönderen: $senderName',
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      fontStyle: FontStyle.italic,
+                                      color: Colors.grey.shade600,
                                     ),
                                   ),
                                 ],
-                              ),
-                              if (showSenderInfo) ...[
-                                const SizedBox(height: 6),
-                                Text(
-                                  'Gönderen: $senderName',
-                                  style: TextStyle(
-                                    fontSize: 13,
-                                    fontStyle: FontStyle.italic,
-                                  ),
-                                ),
                               ],
-                            ],
-                          ),
+                            ),
+                          ],
                         ),
                       ],
                     ),
@@ -344,6 +232,199 @@ class ReportListScreen extends ConsumerWidget {
             Center(child: Text('Bir hata oluştu: $error')),
         loading: () => const Center(child: CircularProgressIndicator()),
       ),
+    );
+  }
+}
+
+class FilterDrawerContent extends ConsumerStatefulWidget {
+  const FilterDrawerContent({super.key});
+  @override
+  ConsumerState<FilterDrawerContent> createState() =>
+      _FilterDrawerContentState();
+}
+
+class _FilterDrawerContentState extends ConsumerState<FilterDrawerContent> {
+  ReportStatus? _tempStatus;
+  ReportCategory? _tempCategory;
+
+  @override
+  void initState() {
+    super.initState();
+    _tempStatus = ref.read(filterStatusProvider);
+    _tempCategory = ref.read(filterCategoryProvider);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    return Column(
+      children: [
+        Expanded(
+          child: SingleChildScrollView(
+            child: Padding(
+              padding: const EdgeInsets.all(24.0),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        'Filtrele',
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+
+                      TextButton(
+                        onPressed: () {
+                          setState(() {
+                            _tempStatus = null;
+                            _tempCategory = null;
+                          });
+                        },
+                        child: Text(
+                          'Temizle',
+                          style: TextStyle(color: colorScheme.error),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  ExpansionTile(
+                    shape: const Border(),
+                    collapsedShape: const Border(),
+                    textColor: Theme.of(context).primaryColor,
+                    iconColor: Theme.of(context).primaryColor,
+                    title: const Text(
+                      'Durum',
+                      style: TextStyle(fontWeight: FontWeight.w600),
+                    ),
+
+                    initiallyExpanded: false,
+
+                    children: [
+                      Wrap(
+                        spacing: 8.0, // yatay boşluk
+                        runSpacing: 8.0, // alt satıra geçerse dikey boşluk
+                        children: [
+                          FilterChip(
+                            label: const Text('Tümü'),
+                            selected: _tempStatus == null,
+                            onSelected: (_) {
+                              setState(() {
+                                _tempStatus = null;
+                              });
+                            },
+                            backgroundColor: colorScheme.surfaceContainerHighest
+                                .withValues(alpha: 0.5),
+                            selectedColor: colorScheme.primary.withValues(
+                              alpha: 0.2,
+                            ),
+                            side: BorderSide.none,
+                          ),
+                          ...ReportStatus.values.map((status) {
+                            final isSelected = _tempStatus == status;
+
+                            return FilterChip(
+                              label: Text(getStatusLabel(status)),
+                              selected: isSelected,
+                              onSelected: (_) {
+                                setState(() {
+                                  _tempStatus = isSelected ? null : status;
+                                });
+                              },
+                              backgroundColor: colorScheme
+                                  .surfaceContainerHighest
+                                  .withValues(alpha: 0.5),
+                              selectedColor: colorScheme.primary.withValues(
+                                alpha: 0.2,
+                              ),
+                              side: BorderSide.none,
+                            );
+                          }).toList(),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                    ],
+                  ),
+                  ExpansionTile(
+                    shape: const Border(),
+                    collapsedShape: const Border(),
+                    textColor: colorScheme.primary,
+                    iconColor: colorScheme.primary,
+                    title: const Text(
+                      'Kategori',
+                      style: TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                    initiallyExpanded: false,
+                    children: [
+                      Wrap(
+                        spacing: 8.0,
+                        runSpacing: 8.0,
+                        children: [
+                          FilterChip(
+                            label: Text('Tüm Kategoriler'),
+                            selected: _tempCategory == null,
+                            onSelected: (_) {
+                              setState(() {
+                                _tempCategory = null;
+                              });
+                            },
+                            backgroundColor: colorScheme.surfaceContainerHighest
+                                .withValues(alpha: 0.5),
+                            selectedColor: colorScheme.primary.withValues(
+                              alpha: 0.2,
+                            ),
+                            side: BorderSide.none,
+                          ),
+                          ...ReportCategory.values.map((category) {
+                            final isSelected = _tempCategory == category;
+                            return FilterChip(
+                              label: Text(getCategoryLabel(category)),
+                              selected: isSelected,
+                              onSelected: (_) {
+                                setState(() {
+                                  _tempCategory = isSelected ? null : category;
+                                });
+                              },
+                              backgroundColor: colorScheme
+                                  .surfaceContainerHighest
+                                  .withValues(alpha: 0.5),
+                              selectedColor: colorScheme.primary.withValues(
+                                alpha: 0.2,
+                              ),
+                              side: BorderSide.none,
+                            );
+                          }).toList(),
+                        ],
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+
+        Padding(
+          padding: const EdgeInsets.fromLTRB(24, 8, 24, 24),
+          child: ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              minimumSize: Size(double.infinity, 48),
+            ),
+            onPressed: () {
+              ref.read(filterStatusProvider.notifier).state = _tempStatus;
+              ref.read(filterCategoryProvider.notifier).state = _tempCategory;
+              Navigator.pop(context);
+            },
+            child: Text('Sonuçları Göster'),
+          ),
+        ),
+      ],
     );
   }
 }

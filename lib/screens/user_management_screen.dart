@@ -11,7 +11,10 @@ class UserManagementScreen extends ConsumerWidget {
     final currentUser = ref.watch(currentUserProvider);
     if (currentUser == null) return const SizedBox.shrink();
 
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
     final isAdmin = currentUser.role == UserRole.admin;
+
     List<UserRole> allowedFilterRoles = [];
     if (isAdmin) {
       allowedFilterRoles = [
@@ -22,134 +25,104 @@ class UserManagementScreen extends ConsumerWidget {
     } else {
       allowedFilterRoles = [UserRole.staff, UserRole.citizen];
     }
-    final title = isAdmin ? 'Sorumlular' : 'Personeller';
 
     final listProvider = isAdmin ? managingListProvider : staffListProvider;
-
     final userAsync = ref.watch(filteredUserListProvider);
 
     return Scaffold(
       appBar: AppBar(
-        title: Text('Kullanıcı Yönetimi'),
+        title: const Text('Kullanıcı Yönetimi'),
+        centerTitle: true,
+        elevation: 0,
         actions: [
-          IconButton(
-            icon: Icon(Icons.filter_list),
-            onPressed: () {
-              showModalBottomSheet(
-                isScrollControlled: true,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-                ),
-                context: context,
-                builder: (context) {
-                  return Consumer(
-                    builder: (context, ref, child) {
-                      return Padding(
-                        padding: EdgeInsets.fromLTRB(
-                          24,
-                          24,
-                          24,
-                          MediaQuery.of(context).padding.bottom + 24,
-                        ),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text(
-                              'Filtrele',
-                              style: TextStyle(
-                                fontSize: 20,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            const SizedBox(height: 16),
-                            const Text(
-                              'Kullanıcılar',
-                              style: TextStyle(fontWeight: FontWeight.w600),
-                            ),
-                            const SizedBox(height: 8),
-                            Wrap(
-                              spacing: 8.0, // yatay boşluk
-                              runSpacing:
-                                  8.0, // alt satıra geçerse dikey boşluk
-                              children: [
-                                FilterChip(
-                                  label: const Text('Tümü'),
-                                  selected:
-                                      ref.watch(filterUserProvider) == null,
-                                  onSelected: (_) {
-                                    ref
-                                            .read(filterUserProvider.notifier)
-                                            .state =
-                                        null;
-                                  },
-                                  backgroundColor: Colors.grey.withValues(
-                                    alpha: 0.1,
-                                  ),
-                                  selectedColor: Theme.of(
-                                    context,
-                                  ).primaryColor.withValues(alpha: 0.2),
-                                  side: BorderSide.none,
-                                ),
-                                ...allowedFilterRoles.map((role) {
-                                  final isSelected =
-                                      ref.watch(filterUserProvider) == role;
-                                  return FilterChip(
-                                    label: Text(getRoleLabel(role)),
-                                    selected: isSelected,
-                                    onSelected: (_) {
-                                      ref
-                                          .read(filterUserProvider.notifier)
-                                          .state = isSelected
-                                          ? null
-                                          : role;
-                                    },
-                                    backgroundColor: Colors.grey.withValues(
-                                      alpha: 0.1,
-                                    ),
-                                    selectedColor: Theme.of(
-                                      context,
-                                    ).primaryColor.withValues(alpha: 0.2),
-                                  );
-                                }).toList(),
-                              ],
-                            ),
-                          ],
-                        ),
-                      );
-                    },
-                  );
+          Builder(
+            builder: (context) {
+              return IconButton(
+                icon: const Icon(Icons.filter_list),
+                onPressed: () {
+                  Scaffold.of(context).openEndDrawer();
                 },
               );
             },
           ),
         ],
       ),
+      endDrawer: Drawer(
+        backgroundColor: colorScheme.surface,
+        child: SafeArea(
+          child: UserFilterDrawerContent(allowedRoles: allowedFilterRoles),
+        ),
+      ),
       body: userAsync.when(
         data: (users) {
-          if (users.isEmpty) return const Center(child: Text('Liste boş'));
+          if (users.isEmpty) {
+            return Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.group_off_outlined, size: 64, color: colorScheme.outline),
+                  const SizedBox(height: 12),
+                  const Text('Liste boş'),
+                ],
+              ),
+            );
+          }
           return ListView.builder(
             padding: const EdgeInsets.symmetric(
-              horizontal: 24.0,
+              horizontal: 16.0,
               vertical: 16.0,
             ),
             itemCount: users.length,
             itemBuilder: (context, index) {
               final user = users[index];
               return Card(
+                margin: const EdgeInsets.only(bottom: 12),
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  side: BorderSide(color: Colors.grey.withValues(alpha: 0.3)),
+                  borderRadius: BorderRadius.circular(16),
+                  side: BorderSide(
+                    color: colorScheme.outline.withValues(alpha: 0.2),
+                  ),
                 ),
                 elevation: 0,
                 child: ListTile(
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  leading: CircleAvatar(
+                    backgroundColor: colorScheme.primaryContainer,
+                    child: Icon(Icons.person, color: colorScheme.onPrimaryContainer),
+                  ),
                   title: Text(
                     user.name,
-                    style: const TextStyle(fontWeight: FontWeight.bold),
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
                   ),
-                  subtitle: Text(user.email),
+                  subtitle: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const SizedBox(height: 4),
+                      Text(user.email, style: TextStyle(color: colorScheme.onSurfaceVariant)),
+                      const SizedBox(height: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Text(
+                          getRoleLabel(user.role),
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                   trailing: IconButton(
-                    icon: Icon(Icons.person_remove, color: Colors.red),
+                    icon: Icon(Icons.person_remove, color: colorScheme.error),
                     onPressed: () {
                       showDialog(
                         context: context,
@@ -157,7 +130,7 @@ class UserManagementScreen extends ConsumerWidget {
                           return AlertDialog(
                             title: const Text('Yetkiyi Al'),
                             content: Text(
-                              '${user.name} isimli kulllanıcının yetkisini almak istediğinize emin misiniz?',
+                              '${user.name} isimli kullanıcının yetkisini almak istediğinize emin misiniz?',
                             ),
                             actions: [
                               TextButton(
@@ -166,7 +139,11 @@ class UserManagementScreen extends ConsumerWidget {
                                 },
                                 child: const Text('İptal'),
                               ),
-                              TextButton(
+                              ElevatedButton(
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: colorScheme.error,
+                                  foregroundColor: colorScheme.onError,
+                                ),
                                 onPressed: () async {
                                   try {
                                     await ref
@@ -177,22 +154,16 @@ class UserManagementScreen extends ConsumerWidget {
                                         );
                                     ref.invalidate(listProvider);
                                     if (context.mounted) {
-                                      ScaffoldMessenger.of(
-                                        context,
-                                      ).showSnackBar(
+                                      ScaffoldMessenger.of(context).showSnackBar(
                                         const SnackBar(
-                                          content: Text(
-                                            'Kullanıcı rolü başarıyla güncellendi',
-                                          ),
+                                          content: Text('Kullanıcı rolü başarıyla güncellendi'),
                                         ),
                                       );
                                       Navigator.pop(context);
                                     }
                                   } catch (e) {
                                     if (context.mounted) {
-                                      ScaffoldMessenger.of(
-                                        context,
-                                      ).showSnackBar(
+                                      ScaffoldMessenger.of(context).showSnackBar(
                                         SnackBar(content: Text('Hata: $e')),
                                       );
                                     }
@@ -206,7 +177,6 @@ class UserManagementScreen extends ConsumerWidget {
                       );
                     },
                   ),
-                  leading: CircleAvatar(child: Icon(Icons.person)),
                 ),
               );
             },
@@ -216,16 +186,18 @@ class UserManagementScreen extends ConsumerWidget {
         loading: () => const Center(child: CircularProgressIndicator()),
       ),
       floatingActionButton: FloatingActionButton.extended(
-        backgroundColor: Theme.of(context).primaryColor,
-        foregroundColor: Colors.white,
+        backgroundColor: colorScheme.primary,
+        foregroundColor: colorScheme.onPrimary,
         onPressed: () {
-          // giren kişi admin ise sorumlu, sorumlu ise personel atayacak
           final roleToCreate = isAdmin ? UserRole.managing : UserRole.staff;
           showModalBottomSheet(
             context: context,
             isScrollControlled: true,
-            builder: (context) =>
-                CitizenSelectionSheet(targetRole: roleToCreate),
+            backgroundColor: colorScheme.surface,
+            shape: const RoundedRectangleBorder(
+              borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+            ),
+            builder: (context) => CitizenSelectionSheet(targetRole: roleToCreate),
           );
         },
         icon: const Icon(Icons.person_add),
@@ -235,44 +207,183 @@ class UserManagementScreen extends ConsumerWidget {
   }
 }
 
+class UserFilterDrawerContent extends ConsumerStatefulWidget {
+  final List<UserRole> allowedRoles;
+  const UserFilterDrawerContent({super.key, required this.allowedRoles});
+
+  @override
+  ConsumerState<UserFilterDrawerContent> createState() => _UserFilterDrawerContentState();
+}
+
+class _UserFilterDrawerContentState extends ConsumerState<UserFilterDrawerContent> {
+  UserRole? _tempRole;
+
+  @override
+  void initState() {
+    super.initState();
+    _tempRole = ref.read(filterUserProvider);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
+    return Column(
+      children: [
+        Expanded(
+          child: SingleChildScrollView(
+            child: Padding(
+              padding: const EdgeInsets.all(24.0),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        'Filtrele',
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      TextButton(
+                        onPressed: () {
+                          setState(() {
+                            _tempRole = null;
+                          });
+                        },
+                        child: Text(
+                          'Temizle',
+                          style: TextStyle(color: colorScheme.error),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  ExpansionTile(
+                    shape: const Border(),
+                    collapsedShape: const Border(),
+                    textColor: colorScheme.primary,
+                    iconColor: colorScheme.primary,
+                    title: const Text(
+                      'Kullanıcı Tipi',
+                      style: TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                    initiallyExpanded: true,
+                    children: [
+                      Wrap(
+                        spacing: 8.0,
+                        runSpacing: 8.0,
+                        children: [
+                          FilterChip(
+                            label: const Text('Tümü'),
+                            selected: _tempRole == null,
+                            onSelected: (_) {
+                              setState(() {
+                                _tempRole = null;
+                              });
+                            },
+                            backgroundColor: colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+                            selectedColor: colorScheme.primary.withValues(alpha: 0.2),
+                            side: BorderSide.none,
+                          ),
+                          ...widget.allowedRoles.map((role) {
+                            final isSelected = _tempRole == role;
+                            return FilterChip(
+                              label: Text(getRoleLabel(role)),
+                              selected: isSelected,
+                              onSelected: (_) {
+                                setState(() {
+                                  _tempRole = isSelected ? null : role;
+                                });
+                              },
+                              backgroundColor: colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+                              selectedColor: colorScheme.primary.withValues(alpha: 0.2),
+                              side: BorderSide.none,
+                            );
+                          }).toList(),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(24, 8, 24, 24),
+          child: ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              minimumSize: const Size(double.infinity, 48),
+            ),
+            onPressed: () {
+              ref.read(filterUserProvider.notifier).state = _tempRole;
+              Navigator.pop(context);
+            },
+            child: const Text('Sonuçları Göster'),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
 class CitizenSelectionSheet extends ConsumerStatefulWidget {
   final UserRole targetRole;
   const CitizenSelectionSheet({super.key, required this.targetRole});
 
   @override
-  ConsumerState<CitizenSelectionSheet> createState() =>
-      _CitizenSelectionSheetState();
+  ConsumerState<CitizenSelectionSheet> createState() => _CitizenSelectionSheetState();
 }
 
 class _CitizenSelectionSheetState extends ConsumerState<CitizenSelectionSheet> {
-  // değişen arama metni
   String _searchQuery = '';
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return SizedBox(
       height: MediaQuery.of(context).size.height * 0.7,
       child: Padding(
         padding: EdgeInsets.fromLTRB(
-          16,
-          16,
-          16,
+          20,
+          24,
+          20,
           16 + MediaQuery.of(context).viewInsets.bottom,
         ),
         child: Column(
           children: [
-            Text(
-              widget.targetRole == UserRole.managing
-                  ? 'Yeni Sorumlu Seç'
-                  : 'Yeni Personel Seç',
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+            Container(
+              width: 40,
+              height: 4,
+              margin: const EdgeInsets.only(bottom: 24),
+              decoration: BoxDecoration(
+                color: colorScheme.outline.withValues(alpha: 0.3),
+                borderRadius: BorderRadius.circular(4),
+              ),
             ),
-            SizedBox(height: 16),
-            // arama çubuğu
+            Text(
+              widget.targetRole == UserRole.managing ? 'Yeni Sorumlu Seç' : 'Yeni Personel Seç',
+              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 20),
             TextField(
               decoration: InputDecoration(
-                hintText: 'İsim ara',
-                prefixIcon: Icon(Icons.search),
+                hintText: 'İsim ara...',
+                prefixIcon: const Icon(Icons.search),
+                filled: true,
+                fillColor: colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  borderSide: BorderSide.none,
+                ),
+                contentPadding: const EdgeInsets.symmetric(vertical: 0),
               ),
               onChanged: (value) {
                 setState(() {
@@ -280,126 +391,113 @@ class _CitizenSelectionSheetState extends ConsumerState<CitizenSelectionSheet> {
                 });
               },
             ),
+            const SizedBox(height: 16),
             Expanded(
-              child: ref
-                  .watch(citizenListProvider)
-                  .when(
-                    data: (users) {
-                      final filteredUsers = users
-                          .where(
-                            (u) => u.name.toLowerCase().contains(
-                              _searchQuery.toLowerCase(),
-                            ),
-                          )
-                          .toList();
-                      if (filteredUsers.isEmpty)
-                        return const Text('Sonuç bulunamadı');
-                      return ListView.builder(
-                        itemCount: filteredUsers.length,
-                        itemBuilder: (context, index) {
-                          final user = filteredUsers[index];
-                          return Card(
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              side: BorderSide(
-                                color: Colors.grey.withValues(alpha: 0.3),
-                              ),
-                            ),
-                            elevation: 0,
-                            child: ListTile(
-                              title: Text(
-                                user.name,
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              subtitle: Text(user.email),
-                              leading: CircleAvatar(child: Icon(Icons.person)),
-                              onTap: () {
-                                showDialog(
-                                  context: context,
-                                  builder: (context) {
-                                    return AlertDialog(
-                                      title: const Text('Emin misiniz?'),
-                                      content: Text(
-                                        '${user.name} isimli kullanıcıyı ${widget.targetRole == UserRole.managing ? 'Sorumlu' : 'Personel'} yapmak istediğinize emin misiniz?',
-                                      ),
-                                      actions: [
-                                        TextButton(
-                                          onPressed: () {
-                                            Navigator.pop(
-                                              context,
-                                            ); // uyarı pencerisini kapatır
-                                          },
-                                          child: const Text('İptal'),
-                                        ),
-                                        TextButton(
-                                          onPressed: () async {
-                                            try {
-                                              // backend e rol güncelleme isteği at
-                                              await ref
-                                                  .read(authRepositoryProvider)
-                                                  .updateUserRole(
-                                                    user.id,
-                                                    widget.targetRole.name,
-                                                  );
-                                              // işlem başarılı olursa ilgili listeleri yenile
-                                              ref.invalidate(
-                                                citizenListProvider,
-                                              ); // vatandaş listesi yenilensin
-                                              ref.invalidate(
-                                                widget.targetRole ==
-                                                        UserRole.managing
-                                                    ? managingListProvider
-                                                    : staffListProvider,
-                                              ); // hangi rol eklendiye o liste yenilensin
+              child: ref.watch(citizenListProvider).when(
+                data: (users) {
+                  final filteredUsers = users
+                      .where(
+                        (u) => u.name.toLowerCase().contains(_searchQuery.toLowerCase()),
+                      )
+                      .toList();
 
-                                              if (context.mounted) {
-                                                ScaffoldMessenger.of(
-                                                  context,
-                                                ).showSnackBar(
-                                                  const SnackBar(
-                                                    content: Text(
-                                                      'Kullanıcı rolü başarıyla güncellendi',
-                                                    ),
-                                                  ),
-                                                );
-                                                Navigator.pop(
-                                                  context,
-                                                ); // bu uyarı pencerini kapatır
-                                                Navigator.pop(
-                                                  context,
-                                                ); // bu da alttaki arama penceresini kapatır
-                                              }
-                                            } catch (e) {
-                                              if (context.mounted) {
-                                                ScaffoldMessenger.of(
-                                                  context,
-                                                ).showSnackBar(
-                                                  SnackBar(
-                                                    content: Text('Hata: $e'),
-                                                  ),
-                                                );
-                                              }
-                                            }
-                                          },
-                                          child: const Text('Onayla'),
-                                        ),
-                                      ],
-                                    );
-                                  },
+                  if (filteredUsers.isEmpty) {
+                    return Center(
+                      child: Text(
+                        'Sonuç bulunamadı',
+                        style: TextStyle(color: colorScheme.outline),
+                      ),
+                    );
+                  }
+                  return ListView.builder(
+                    itemCount: filteredUsers.length,
+                    itemBuilder: (context, index) {
+                      final user = filteredUsers[index];
+                      return Card(
+                        margin: const EdgeInsets.only(bottom: 8),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          side: BorderSide(
+                            color: colorScheme.outline.withValues(alpha: 0.2),
+                          ),
+                        ),
+                        elevation: 0,
+                        child: ListTile(
+                          title: Text(
+                            user.name,
+                            style: const TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                          subtitle: Text(
+                            user.email,
+                            style: TextStyle(color: colorScheme.onSurfaceVariant),
+                          ),
+                          leading: CircleAvatar(
+                            backgroundColor: colorScheme.secondaryContainer,
+                            child: Icon(Icons.person, color: colorScheme.onSecondaryContainer),
+                          ),
+                          onTap: () {
+                            showDialog(
+                              context: context,
+                              builder: (context) {
+                                return AlertDialog(
+                                  title: const Text('Emin misiniz?'),
+                                  content: Text(
+                                    '${user.name} isimli kullanıcıyı ${widget.targetRole == UserRole.managing ? 'Sorumlu' : 'Personel'} yapmak istediğinize emin misiniz?',
+                                  ),
+                                  actions: [
+                                    TextButton(
+                                      onPressed: () {
+                                        Navigator.pop(context);
+                                      },
+                                      child: const Text('İptal'),
+                                    ),
+                                    ElevatedButton(
+                                      onPressed: () async {
+                                        try {
+                                          await ref
+                                              .read(authRepositoryProvider)
+                                              .updateUserRole(
+                                                user.id,
+                                                widget.targetRole.name,
+                                              );
+                                          ref.invalidate(citizenListProvider);
+                                          ref.invalidate(
+                                            widget.targetRole == UserRole.managing
+                                                ? managingListProvider
+                                                : staffListProvider,
+                                          );
+                                          if (context.mounted) {
+                                            ScaffoldMessenger.of(context).showSnackBar(
+                                              const SnackBar(
+                                                content: Text('Kullanıcı rolü başarıyla güncellendi'),
+                                              ),
+                                            );
+                                            Navigator.pop(context);
+                                            Navigator.pop(context);
+                                          }
+                                        } catch (e) {
+                                          if (context.mounted) {
+                                            ScaffoldMessenger.of(context).showSnackBar(
+                                              SnackBar(content: Text('Hata: $e')),
+                                            );
+                                          }
+                                        }
+                                      },
+                                      child: const Text('Onayla'),
+                                    ),
+                                  ],
                                 );
                               },
-                            ),
-                          );
-                        },
+                            );
+                          },
+                        ),
                       );
                     },
-                    error: (err, stack) =>
-                        Center(child: Text('Bir hata oluştu: $err')),
-                    loading: () =>
-                        const Center(child: CircularProgressIndicator()),
-                  ),
+                  );
+                },
+                error: (err, stack) => Center(child: Text('Bir hata oluştu: $err')),
+                loading: () => const Center(child: CircularProgressIndicator()),
+              ),
             ),
           ],
         ),

@@ -44,6 +44,7 @@ dependencies:
   crypto: ^3.0.5 # şifreyi hash lemek için
   shared_preferences: ^2.3.2 # kim giriş yapmış bilgisini hatırlamak için 
   dio: ^5.0.0
+  geocoding: ^4.0.0
 
 dev_dependencies:
   flutter_test:

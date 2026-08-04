@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:sikayet_uygulamasi/providers/auth_provider.dart';
 import 'package:uuid/uuid.dart';
@@ -9,6 +10,7 @@ import 'dart:io';
 import 'package:image_picker/image_picker.dart';
 import 'package:path/path.dart' as path;
 import 'package:path_provider/path_provider.dart';
+import 'package:geocoding/geocoding.dart';
 
 class CreateReportScreen extends ConsumerStatefulWidget {
   final Report? existingReport;
@@ -19,6 +21,9 @@ class CreateReportScreen extends ConsumerStatefulWidget {
 }
 
 class _CreateReportScreenState extends ConsumerState<CreateReportScreen> {
+  final TextEditingController _adressController = TextEditingController();
+  bool _isSubmitting = false;
+  bool _isLocationFound = false;
   // tek tuşla formdaki boşlukları kontrol için
   final _formKey = GlobalKey<FormState>();
 
@@ -34,10 +39,44 @@ class _CreateReportScreenState extends ConsumerState<CreateReportScreen> {
   void initState() {
     super.initState();
     if (widget.existingReport != null) {
+      _isLocationFound = true;
+      _isLoadingLocation = false;
+      _latitude = widget.existingReport!.latitude;
+      _longitude = widget.existingReport!.longitude;
       _title = widget.existingReport!.title;
       _description = widget.existingReport!.description;
       _selectedCategory = widget.existingReport!.category;
       _selectedImages = widget.existingReport!.imagePaths.toList();
+    }
+  }
+
+  Future<void> _fetchCurrentLocation() async {
+    setState(() {
+      _isLoadingLocation = true;
+    });
+    try {
+      final position = await LocationService().getCurrentLocation();
+      _latitude = position.latitude;
+      _longitude = position.longitude;
+
+      final placemarks = await placemarkFromCoordinates(
+        _latitude!,
+        _longitude!,
+      );
+      final place = placemarks.first;
+      final adressText =
+          '${place.subLocality} Mah. ${place.thoroughfare}, ${place.subAdministrativeArea}'; // mah,sokak,ilçe
+      _adressController.text = adressText;
+      setState(() {
+        _isLoadingLocation = false;
+      });
+    } catch (e) {
+      if (context.mounted) {
+        _isLoadingLocation = false;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Hata: $e'), backgroundColor: Colors.red),
+        );
+      }
     }
   }
 
@@ -145,16 +184,9 @@ class _CreateReportScreenState extends ConsumerState<CreateReportScreen> {
   Future<void> _submitForm() async {
     if (_formKey.currentState!.validate()) {
       setState(() {
-        _isLoadingLocation = true;
+        _isSubmitting = true;
       });
-
       try {
-        if (widget.existingReport == null) {
-          final locationService = LocationService();
-          final position = await locationService.getCurrentLocation();
-          _latitude = position.latitude;
-          _longitude = position.longitude;
-        }
         _formKey.currentState!.save();
         final currentUser = ref.read(currentUserProvider);
         final reportToSave = Report(
@@ -188,7 +220,7 @@ class _CreateReportScreenState extends ConsumerState<CreateReportScreen> {
       } finally {
         if (context.mounted) {
           setState(() {
-            _isLoadingLocation = false;
+            _isSubmitting = false;
           });
         }
       }
@@ -197,12 +229,13 @@ class _CreateReportScreenState extends ConsumerState<CreateReportScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final primaryColor = Theme.of(context).primaryColor;
+    final colorScheme = Theme.of(context).colorScheme;
+    final primaryColor = colorScheme.primary;
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: colorScheme.surface,
       appBar: AppBar(
         elevation: 0,
-        
+
         title: Text(
           widget.existingReport != null
               ? 'Bildirimi Düzenle'
@@ -210,7 +243,7 @@ class _CreateReportScreenState extends ConsumerState<CreateReportScreen> {
         ),
       ),
       body: Padding(
-        padding: const EdgeInsets.all(16.0),
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
         child: Form(
           key: _formKey,
           child: ListView(
@@ -221,18 +254,20 @@ class _CreateReportScreenState extends ConsumerState<CreateReportScreen> {
                   labelText: 'Başlık',
                   prefixIcon: Icon(Icons.title),
                   filled: true,
-                  fillColor: Colors.grey.withValues(alpha: 0.05),
+                  fillColor: colorScheme.surfaceContainerHighest.withValues(
+                    alpha: 0.3,
+                  ),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(color: Colors.grey.withValues(alpha: 0.3)),
+                    borderSide: BorderSide.none,
                   ),
                   enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(color: Colors.grey.withValues(alpha: 0.3)),
+                    borderRadius: BorderRadius.circular(16),
+                    borderSide: BorderSide.none,
                   ),
                   focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(color: primaryColor, width: 2),
+                    borderRadius: BorderRadius.circular(16),
+                    borderSide: BorderSide.none,
                   ),
                 ),
                 validator: (value) {
@@ -254,19 +289,21 @@ class _CreateReportScreenState extends ConsumerState<CreateReportScreen> {
                   alignLabelWithHint: true,
                   prefixIcon: Icon(Icons.description_outlined),
                   border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(color: Colors.grey.withValues(alpha: 0.3)),
+                    borderRadius: BorderRadius.circular(16),
+                    borderSide: BorderSide.none,
                   ),
                   enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(color: Colors.grey.withValues(alpha: 0.3)),
+                    borderRadius: BorderRadius.circular(16),
+                    borderSide: BorderSide.none,
                   ),
                   focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(color: primaryColor, width: 2),
+                    borderRadius: BorderRadius.circular(16),
+                    borderSide: BorderSide.none,
                   ),
                   filled: true,
-                  fillColor: Colors.grey.withValues(alpha: 0.05),
+                  fillColor: colorScheme.surfaceContainerHighest.withValues(
+                    alpha: 0.3,
+                  ),
                 ),
                 maxLines: 4,
                 validator: (value) {
@@ -286,10 +323,10 @@ class _CreateReportScreenState extends ConsumerState<CreateReportScreen> {
                       onTap: _showImageSourceActionSheet,
                       child: Container(
                         decoration: BoxDecoration(
-                          color: primaryColor.withValues(alpha: 0.05),
+                          color: colorScheme.surfaceContainerHighest,
                           borderRadius: BorderRadius.circular(16),
                           border: Border.all(
-                            color: primaryColor.withValues(alpha: 0.3),
+                            color: colorScheme.outline,
                             width: 2,
                           ),
                         ),
@@ -301,7 +338,7 @@ class _CreateReportScreenState extends ConsumerState<CreateReportScreen> {
                             Icon(
                               Icons.photo_camera,
                               size: 40,
-                              color: primaryColor,
+                              color: colorScheme.outline,
                             ),
                             SizedBox(height: 8),
                             Text('Fotoğraf ekle (Maksimum 3)'),
@@ -331,10 +368,11 @@ class _CreateReportScreenState extends ConsumerState<CreateReportScreen> {
                                                 Container(
                                                   height: 100,
                                                   width: 100,
-                                                  color: Colors.grey.withValues(alpha: 0.2),
-                                                  child: const Icon(
+                                                  color: colorScheme
+                                                      .surfaceContainerHighest,
+                                                  child: Icon(
                                                     Icons.broken_image,
-                                                    color: Colors.grey,
+                                                    color: colorScheme.outline,
                                                   ),
                                                 ),
                                       )
@@ -394,44 +432,81 @@ class _CreateReportScreenState extends ConsumerState<CreateReportScreen> {
                       ],
                     ),
               const SizedBox(height: 24),
-              DropdownButtonFormField<ReportCategory>(
+              TextFormField(
+                controller: _adressController,
                 decoration: InputDecoration(
-                  labelText: 'Kategori',
-                  prefixIcon: const Icon(Icons.category_outlined),
+                  prefixIcon: Icon(Icons.location_on_outlined),
+                  hintText: "Örn: Şahinbey, Gaziantep...",
                   filled: true,
-                  fillColor: Colors.grey.shade50,
+                  fillColor: colorScheme.surfaceContainerHighest.withValues(
+                    alpha: 0.3,
+                  ),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(color: Colors.grey.shade300),
+                    borderSide: BorderSide.none,
                   ),
                   enabledBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(color: Colors.grey.shade300),
+                    borderSide: BorderSide.none,
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(color: primaryColor, width: 2),
+                    borderSide: BorderSide.none,
                   ),
+
+                  labelText: 'Açık Adres/Konum Tarifi',
+
+                  suffixIcon: _isLoadingLocation
+                      ? Padding(
+                          padding: EdgeInsets.all(12),
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : IconButton(
+                          onPressed: _fetchCurrentLocation,
+                          icon: Icon(Icons.my_location),
+                        ),
                 ),
-                value: _selectedCategory,
-                items: ReportCategory.values.map((category) {
-                  return DropdownMenuItem(
-                    value: category,
-                    child: Text(getCategoryLabel(category)),
-                  );
-                }).toList(),
-                onChanged: (selectedValue) {
-                  setState(() {
-                    _selectedCategory = selectedValue!;
-                  });
+                validator: (value) {
+                  if (value == null || value.isEmpty)
+                    return 'Adres alanı boş bırakılamaz';
+                  return null;
                 },
               ),
+              const SizedBox(height: 24),
+              const Text(
+                'Kategori Seçin',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 12),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  ...ReportCategory.values.map((category) {
+                    return ChoiceChip(
+                      selectedColor: colorScheme.primary.withValues(alpha: 0.2),
+                      backgroundColor: colorScheme.surfaceContainerHighest
+                          .withValues(alpha: 0.3),
+                      side: BorderSide.none,
+                      label: Text(getCategoryLabel(category)),
+                      selected: _selectedCategory == category,
+                      onSelected: (bool selected) {
+                        if (selected)
+                          setState(() {
+                            _selectedCategory = category;
+                          });
+                      },
+                    );
+                  }).toList(),
+                ],
+              ),
+
               const SizedBox(height: 32),
               SizedBox(
                 width: double.infinity,
                 height: 52,
                 child: ElevatedButton(
-                  child: _isLoadingLocation == true
+                  child: _isSubmitting == true
                       ? SizedBox(
                           child: CircularProgressIndicator(color: Colors.white),
                           height: 24,
@@ -444,7 +519,7 @@ class _CreateReportScreenState extends ConsumerState<CreateReportScreen> {
                             fontWeight: FontWeight.bold,
                           ),
                         ),
-                  onPressed: _isLoadingLocation == true ? null : _submitForm,
+                  onPressed: _isSubmitting == true ? null : _submitForm,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: primaryColor,
                     foregroundColor: Colors.white,
