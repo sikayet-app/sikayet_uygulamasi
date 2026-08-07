@@ -34,6 +34,7 @@ class _MainNavigationScreenState extends ConsumerState<MainNavigationScreen> {
     return Scaffold(
       body: IndexedStack(index: _currentIndex, children: screens),
       floatingActionButton: FloatingActionButton(
+        heroTag: 'main_add_fab',
         onPressed: () {
           Navigator.of(context).push(
             MaterialPageRoute(builder: (context) => const CreateReportScreen()),

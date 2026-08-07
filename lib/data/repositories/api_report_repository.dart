@@ -32,9 +32,9 @@ class ApiReportRepository implements ReportRepository {
   }
   @override
   Future<List<Report>> getReports({String? status, String? category}) async {
-    final queryParams = <String,dynamic>{};
-    if(status != null) queryParams['status'] = status;
-    if(category!=null) queryParams['category'] = category;
+    final queryParams = <String, dynamic>{};
+    if (status != null) queryParams['status'] = status;
+    if (category != null) queryParams['category'] = category;
     // Backend'deki index metodu pagination (sayfalama) ile 'data' içinde liste döner
     final response = await _dio.get('/reports', queryParameters: queryParams);
     final List<dynamic> data = response.data['data'];
@@ -49,6 +49,10 @@ class ApiReportRepository implements ReportRepository {
       'category': report.category.name, // Enum'u string yapıyoruz
       'latitude': report.latitude,
       'longitude': report.longitude,
+      'contact_phone': report.contactPhone,
+      'district': report.addressDistrict,
+      'quarter': report.addressQuarter,
+      'full_address': report.fullAddress,
     });
 
     for (var imagePath in report.imagePaths) {
@@ -88,6 +92,10 @@ class ApiReportRepository implements ReportRepository {
       'category': report.category.name,
       'latitude': report.latitude,
       'longitude': report.longitude,
+      'contact_phone': report.contactPhone,
+      'district': report.addressDistrict,
+      'quarter': report.addressQuarter,
+      'full_address': report.fullAddress,
     });
 
     for (var imagePath in report.imagePaths) {

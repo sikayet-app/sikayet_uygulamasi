@@ -12,20 +12,33 @@ final reportRepositoryProvider = Provider<ReportRepository>((ref) {
   return ApiReportRepository();
 });
 
-final reportListProvider = FutureProvider<List<Report>>((ref) async {
+final reportListProvider = FutureProvider.autoDispose<List<Report>>((
+  ref,
+) async {
+  final user = ref.watch(currentUserProvider);
+  if (user == null) {
+    return [];
+  }
   final repository = ref.watch(reportRepositoryProvider);
-  
+
   final selectedStatus = ref.watch(filterStatusProvider);
   final selectedCategory = ref.watch(filterCategoryProvider);
-  return repository.getReports(status: selectedStatus?.name, category: selectedCategory?.name);
+  return repository.getReports(
+    status: selectedStatus?.name,
+    category: selectedCategory?.name,
+  );
 });
 
+final filterCategoryProvider = StateProvider.autoDispose<ReportCategory?>(
+  (ref) => null,
+);
+final filterStatusProvider = StateProvider.autoDispose<ReportStatus?>(
+  (ref) => null,
+);
 
-final filterCategoryProvider = StateProvider<ReportCategory?>((ref) => null);
-final filterStatusProvider = StateProvider<ReportStatus?>((ref) => null);
-
-
-final sortProvider = StateProvider<SortOrder>((ref) => SortOrder.newest);
+final sortProvider = StateProvider.autoDispose<SortOrder>(
+  (ref) => SortOrder.newest,
+);
 
 final filteredReportListProvider = Provider<AsyncValue<List<Report>>>((ref) {
   final reportAsync = ref.watch(reportListProvider);
@@ -45,5 +58,3 @@ final filteredReportListProvider = Provider<AsyncValue<List<Report>>>((ref) {
     return filtered;
   });
 });
-
-

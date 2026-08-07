@@ -9,6 +9,7 @@ import '../providers/report_provider.dart';
 import '../data/models/report.dart';
 import 'report_detail_screen.dart';
 import '../data/models/user.dart';
+import '../widgets/notification_bell.dart';
 
 class ReportListScreen extends ConsumerWidget {
   const ReportListScreen({super.key});
@@ -26,6 +27,7 @@ class ReportListScreen extends ConsumerWidget {
         centerTitle: true,
         title: const Text('Şikayet Listesi'),
         actions: [
+          const NotificationBell(),
           Builder(
             builder: (context) {
               return IconButton(
@@ -57,175 +59,190 @@ class ReportListScreen extends ConsumerWidget {
               ),
             );
           }
-          return ListView.builder(
-            padding: const EdgeInsets.symmetric(vertical: 8),
-            itemCount: reports.length,
-            itemBuilder: (context, index) {
-              final report = reports[index];
-              final senderName = report.senderName ?? 'Bilinmiyor';
-              return Card(
-                margin: EdgeInsets.symmetric(vertical: 8, horizontal: 12),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
+          return RefreshIndicator(
+            onRefresh: () async {
+              ref.invalidate(reportListProvider);
+              try {
+                await ref.read(reportListProvider.future);
+              } catch (_) {}
+            },
+            child: ListView.builder(
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              itemCount: reports.length,
+              itemBuilder: (context, index) {
+                final report = reports[index];
+                final senderName = report.senderName ?? 'Bilinmiyor';
+                return Card(
+                  margin: EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
 
-                child: InkWell(
-                  borderRadius: BorderRadius.circular(12),
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) =>
-                            ReportDetailScreen(report: report),
-                      ),
-                    );
-                  },
-
-                  child: Padding(
-                    padding: const EdgeInsets.all(12),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Icon(Icons.label, color: Colors.grey),
-                            Text(getCategoryLabel(report.category)),
-                            Spacer(),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 12,
-                                vertical: 6,
-                              ),
-                              decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(20),
-                                color: colorForStatus(
-                                  report.status,
-                                ).withValues(alpha: 0.15),
-                              ),
-                              child: Text(
-                                '${getStatusLabel(report.status)}',
-                                style: TextStyle(
-                                  color: colorForStatus(report.status),
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ),
-                          ],
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(12),
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) =>
+                              ReportDetailScreen(report: report),
                         ),
-                        SizedBox(height: 12),
-                        report.imagePaths.isNotEmpty
-                            ? ClipRRect(
-                                borderRadius: BorderRadius.circular(8),
-                                child:
-                                    report.imagePaths.first.startsWith(
-                                          'http',
-                                        ) ||
-                                        kIsWeb
-                                    ? Image.network(
-                                        report.imagePaths.first,
-                                        width: double.infinity,
-                                        height: 180,
-                                        fit: BoxFit.cover,
-                                        errorBuilder:
-                                            (context, error, stackTrace) =>
-                                                Container(
-                                                  width: double.infinity,
-                                                  height: 180,
-                                                  color: Colors.grey[300],
-                                                  child: const Icon(
-                                                    Icons.broken_image,
-                                                    color: Colors.grey,
-                                                  ),
-                                                ),
-                                      )
-                                    : Image.file(
-                                        File(report.imagePaths.first),
-                                        width: double.infinity,
-                                        height: 180,
-                                        fit: BoxFit.cover,
-                                        errorBuilder:
-                                            (context, error, stackTrace) =>
-                                                Container(
-                                                  width: double.infinity,
-                                                  height: 180,
-                                                  color: Colors.grey[300],
-                                                  child: const Icon(
-                                                    Icons.broken_image,
-                                                    color: Colors.grey,
-                                                  ),
-                                                ),
-                                      ),
-                              )
-                            : Container(
+                      );
+                    },
+
+                    child: Padding(
+                      padding: const EdgeInsets.all(12),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Icon(Icons.label, color: Colors.grey),
+                              Text(getCategoryLabel(report.category)),
+                              Spacer(),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 6,
+                                ),
                                 decoration: BoxDecoration(
-                                  borderRadius: BorderRadius.circular(8),
-                                  color: Colors.grey.withValues(alpha: 0.2),
+                                  borderRadius: BorderRadius.circular(20),
+                                  color: colorForStatus(
+                                    report.status,
+                                  ).withValues(alpha: 0.15),
                                 ),
-                                width: double.infinity,
-                                height: 180,
-                                child: Icon(Icons.report_problem),
-                                alignment: Alignment.center,
-                              ),
-
-                        const SizedBox(height: 16),
-
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              report.title,
-                              style: TextStyle(
-                                fontWeight: FontWeight.w800,
-                                fontSize: 18,
-                              ),
-                            ),
-
-                            SizedBox(height: 8),
-
-                            Text(
-                              report.description,
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(color: Colors.grey.shade700),
-                            ),
-
-                            SizedBox(height: 12),
-                            Row(
-                              crossAxisAlignment: CrossAxisAlignment.center,
-                              children: [
-                                Icon(
-                                  Icons.location_on,
-                                  size: 14,
-                                  color: Colors.grey.shade600,
-                                ),
-                                Text(
-                                  'Bekleniyor',
+                                child: Text(
+                                  '${getStatusLabel(report.status)}',
                                   style: TextStyle(
-                                    fontSize: 13,
+                                    color: colorForStatus(report.status),
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          SizedBox(height: 12),
+                          report.imagePaths.isNotEmpty
+                              ? ClipRRect(
+                                  borderRadius: BorderRadius.circular(8),
+                                  child:
+                                      report.imagePaths.first.startsWith(
+                                            'http',
+                                          ) ||
+                                          kIsWeb
+                                      ? Image.network(
+                                          report.imagePaths.first,
+                                          width: double.infinity,
+                                          height: 180,
+                                          fit: BoxFit.cover,
+                                          errorBuilder:
+                                              (context, error, stackTrace) =>
+                                                  Container(
+                                                    width: double.infinity,
+                                                    height: 180,
+                                                    color: Colors.grey[300],
+                                                    child: const Icon(
+                                                      Icons.broken_image,
+                                                      color: Colors.grey,
+                                                    ),
+                                                  ),
+                                        )
+                                      : Image.file(
+                                          File(report.imagePaths.first),
+                                          width: double.infinity,
+                                          height: 180,
+                                          fit: BoxFit.cover,
+                                          errorBuilder:
+                                              (context, error, stackTrace) =>
+                                                  Container(
+                                                    width: double.infinity,
+                                                    height: 180,
+                                                    color: Colors.grey[300],
+                                                    child: const Icon(
+                                                      Icons.broken_image,
+                                                      color: Colors.grey,
+                                                    ),
+                                                  ),
+                                        ),
+                                )
+                              : Container(
+                                  decoration: BoxDecoration(
+                                    borderRadius: BorderRadius.circular(8),
+                                    color: Colors.grey.withValues(alpha: 0.2),
+                                  ),
+                                  width: double.infinity,
+                                  height: 180,
+                                  child: Icon(Icons.report_problem),
+                                  alignment: Alignment.center,
+                                ),
+
+                          const SizedBox(height: 16),
+
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                report.title,
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w800,
+                                  fontSize: 18,
+                                ),
+                              ),
+
+                              SizedBox(height: 8),
+
+                              Text(
+                                report.description,
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(color: Colors.grey.shade700),
+                              ),
+
+                              SizedBox(height: 12),
+                              Row(
+                                crossAxisAlignment: CrossAxisAlignment.center,
+                                children: [
+                                  Icon(
+                                    Icons.location_on,
+                                    size: 14,
                                     color: Colors.grey.shade600,
                                   ),
-                                ),
-                                if (showSenderInfo) ...[
-                                  Spacer(),
-                                  Text(
-                                    'Gönderen: $senderName',
-                                    style: TextStyle(
-                                      fontSize: 13,
-                                      fontStyle: FontStyle.italic,
-                                      color: Colors.grey.shade600,
+                                  const SizedBox(width: 4),
+                                  Expanded(
+                                    child: Text(
+                                      report.fullAddress ??
+                                          'Adres belirtilmemiş',
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: TextStyle(
+                                        fontSize: 13,
+                                        color: Colors.grey.shade600,
+                                      ),
                                     ),
                                   ),
+
+                                  if (showSenderInfo) ...[
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      'Gönderen: $senderName',
+                                      style: TextStyle(
+                                        fontSize: 13,
+                                        fontStyle: FontStyle.italic,
+                                        color: Colors.grey.shade600,
+                                      ),
+                                    ),
+                                  ],
                                 ],
-                              ],
-                            ),
-                          ],
-                        ),
-                      ],
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
                     ),
                   ),
-                ),
-              );
-            },
+                );
+              },
+            ),
           );
         },
         error: (error, StackTrace) =>

@@ -8,12 +8,12 @@ import '../providers/report_provider.dart';
 import '../core/report_ui_helpers.dart';
 import 'dart:io';
 import 'report_detail_screen.dart';
+import 'package:flutter_map_marker_cluster/flutter_map_marker_cluster.dart'; // EKSİK NOKTALI VİRGÜL EKLENDİ
 
 // consumer: db ye yeni şikayet gelirse harita bunu anında gösterecek
 // stateful: hafızası olan,zamanla değişebilen. konumum değiştikçe mavi nokta hareket edecek.
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
-
   @override
   ConsumerState<HomeScreen> createState() => _HomeScreenState();
 }
@@ -78,9 +78,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
                   userAgentPackageName: 'com.example.sikayet_uygulamasi',
                 ),
-                MarkerLayer(
-                  markers: [
-                    ...reports.map((report) {
+                MarkerClusterLayerWidget(
+                  options: MarkerClusterLayerOptions(
+                    maxClusterRadius: 45,
+                    size: const Size(40, 40),
+                    alignment: Alignment.center,
+                    padding: const EdgeInsets.all(50),
+                    maxZoom: 15,
+                    markers: reports.map((report) {
                       return Marker(
                         point: LatLng(report.latitude, report.longitude),
                         width: 40,
@@ -111,8 +116,39 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           ),
                         ),
                       );
-                    }),
-                    if (_myLocation != null)
+                    }).toList(),
+                    builder: (context, markers) {
+                      return Container(
+                        decoration: BoxDecoration(
+                          color: Theme.of(context).primaryColor,
+                          shape: BoxShape.circle,
+                          border: Border.all(color: Colors.white, width: 2.0),
+                          boxShadow: const [
+                            // EKSİK KÖŞELİ PARANTEZ EKLENDİ
+                            BoxShadow(
+                              color: Colors.black26,
+                              blurRadius: 4,
+                              offset: Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: Center(
+                          child: Text(
+                            markers.length.toString(),
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 14,
+                            ),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+                if (_myLocation != null)
+                  MarkerLayer(
+                    markers: [
                       Marker(
                         point: _myLocation!,
                         width: 20,
@@ -132,10 +168,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           ),
                         ),
                       ),
-                  ],
-                ),
+                    ],
+                  ),
               ],
-            ),
+            ), // FLUTTERMAP BİTİŞİ EKLENDİ VE VİRGÜL KONULDU
             Positioned(
               bottom: 16,
               right: 16,
@@ -228,6 +264,26 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           ),
                         ],
                       ),
+                      const SizedBox(height: 6),
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Icon(Icons.location_on, size: 14, color: Colors.grey),
+                          SizedBox(width: 6),
+                          Expanded(
+                            child: Text(
+                              report.fullAddress ?? 'Adres belirtilmemiş',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.grey,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
                       Text(
                         report.description,
                         style: TextStyle(fontSize: 14),
@@ -266,7 +322,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     color: colorForStatus(report.status),
                     borderRadius: BorderRadius.circular(20),
                   ),
-
                   child: Text(
                     getStatusLabel(report.status),
                     style: TextStyle(
@@ -280,7 +335,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             const SizedBox(height: 16),
             SizedBox(
               width: double.infinity,
-
               child: ElevatedButton(
                 child: Text('Detaya Git'),
                 onPressed: () {

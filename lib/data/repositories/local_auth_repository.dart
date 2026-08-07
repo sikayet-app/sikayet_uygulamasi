@@ -13,6 +13,7 @@ class LocalAuthRepository implements AuthRepository {
     required String name,
     required String email,
     required String password,
+    String? phoneNumber,
   }) async {
     final existingUser = await _dbHelper.getUserByEmail(email);
     if (existingUser != null) {

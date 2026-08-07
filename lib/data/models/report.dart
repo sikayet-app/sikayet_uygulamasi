@@ -21,6 +21,10 @@ class Report {
   final bool canEditReport;
   final bool canUpdateStatus;
   final bool canAssignReport;
+  final String? addressDistrict;
+  final String? addressQuarter;
+  final String? fullAddress;
+  final String? contactPhone;
 
   Report({
     required this.id,
@@ -42,6 +46,10 @@ class Report {
     this.canEditReport = false,
     this.canAssignReport = false,
     this.canUpdateStatus = false,
+    this.addressDistrict,
+    this.addressQuarter,
+    this.fullAddress,
+    this.contactPhone,
   });
 
   // şikayetin durumunu çözüldü yapmak istediğimizde, eski şikayetin tüm verilerini al sadece durumunu değiştiren yeni bir nesne oluştur.
@@ -64,6 +72,10 @@ class Report {
     bool? canEditReport,
     bool? canAssignReport,
     bool? canUpdateStatus,
+    String? addressDistrict,
+    String? addressQuarter,
+    String? fullAddress,
+    String? contactPhone,
   }) {
     return Report(
       id: id ?? this.id,
@@ -84,6 +96,10 @@ class Report {
       canEditReport: canEditReport ?? this.canEditReport,
       canUpdateStatus: canUpdateStatus ?? this.canUpdateStatus,
       canAssignReport: canAssignReport ?? this.canAssignReport,
+      addressDistrict: addressDistrict ?? this.addressDistrict,
+      addressQuarter: addressQuarter ?? this.addressQuarter,
+      fullAddress: fullAddress ?? this.fullAddress,
+      contactPhone: contactPhone ?? this.contactPhone,
     );
   }
 
@@ -128,6 +144,17 @@ class Report {
       assignedStaffName = staffMap['name'] as String?;
     }
 
+    String? dist;
+    String? quart;
+    String? full;
+
+    if (map['address'] != null && map['address'] is Map) {
+      final addrMap = map['address'] as Map;
+      dist = addrMap['district']?.toString();
+      quart = addrMap['quarter']?.toString();
+      full = addrMap['full_address']?.toString();
+    }
+
     return Report(
       id: map['id'].toString(),
       title: map['title'] as String,
@@ -153,25 +180,37 @@ class Report {
       canEditReport: map['can_edit_report'] as bool? ?? false,
       canUpdateStatus: map['can_update_status'] as bool? ?? false,
       canAssignReport: map['can_assign_report'] as bool? ?? false,
+      addressDistrict: dist,
+      addressQuarter: quart,
+      fullAddress: full,
+      contactPhone:
+          map['contact_phone']?.toString() ?? map['contactPhone']?.toString(),
     );
   }
 
   // db ye yazma.
   Map<String, dynamic> toMap() {
     return {
-      'id': id,
+      //'id': id,
       'title': title,
       'description': description,
       'category': category.name,
       'status': status.name,
       'latitude': latitude,
       'longitude': longitude,
-      'imagePaths': imagePaths.join(','),
-      'createdAt': createdAt.toIso8601String(),
-      'userId': userId,
-      'resolutionNote': resolutionNote,
-      'assignedStaffId': assignedStaffId,
-      'assignedStaffName': assignedStaffName,
+      'image_paths': imagePaths.join(','),
+      //'createdAt': createdAt.toIso8601String(),
+      'user_id': userId,
+      'resolution_note': resolutionNote,
+      'assigned_staff_id': assignedStaffId != null
+          ? int.tryParse(assignedStaffId!)
+          : null,
+      //'assignedStaffName': assignedStaffName,
+      'contact_phone': contactPhone,
+
+      'district': addressDistrict ?? '',
+      'quarter': addressQuarter ?? '',
+      'full_address': fullAddress ?? '',
     };
   }
 }

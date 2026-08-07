@@ -18,6 +18,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   String _name = '';
   String _email = '';
   String _password = '';
+  String _phoneNumber = '';
   bool _isLoading = false;
   bool _obscurePassword = true;
 
@@ -30,7 +31,12 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
         _formKey.currentState!.save();
         final result = await ref
             .read(authRepositoryProvider)
-            .register(name: _name, email: _email, password: _password);
+            .register(
+              name: _name,
+              email: _email,
+              password: _password,
+              phoneNumber: _phoneNumber.isNotEmpty ? _phoneNumber : null,
+            );
         ref.read(currentUserProvider.notifier).state = result.user;
         if (context.mounted) {
           Navigator.pushReplacement(
@@ -60,7 +66,6 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   Widget build(BuildContext context) {
     final primaryColor = Theme.of(context).primaryColor;
     return Scaffold(
-      
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
@@ -77,11 +82,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                   Text(
                     'Kayıt Ol',
                     textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 28,
-                      fontWeight: FontWeight.bold,
-                      
-                    ),
+                    style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
                   ),
                   Text(
                     'Yeni bir hesap oluşturun',
@@ -97,11 +98,15 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                       fillColor: Colors.grey.withValues(alpha: 0.05),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(color: Colors.grey.withValues(alpha: 0.3)),
+                        borderSide: BorderSide(
+                          color: Colors.grey.withValues(alpha: 0.3),
+                        ),
                       ),
                       enabledBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(color: Colors.grey.withValues(alpha: 0.3)),
+                        borderSide: BorderSide(
+                          color: Colors.grey.withValues(alpha: 0.3),
+                        ),
                       ),
                       focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
@@ -128,11 +133,15 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                       fillColor: Colors.grey.withValues(alpha: 0.05),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(color: Colors.grey.withValues(alpha: 0.3)),
+                        borderSide: BorderSide(
+                          color: Colors.grey.withValues(alpha: 0.3),
+                        ),
                       ),
                       enabledBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(color: Colors.grey.withValues(alpha: 0.3)),
+                        borderSide: BorderSide(
+                          color: Colors.grey.withValues(alpha: 0.3),
+                        ),
                       ),
                       focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
@@ -157,6 +166,36 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                   const SizedBox(height: 16),
                   TextFormField(
                     decoration: InputDecoration(
+                      labelText: 'Telefon Numarası',
+                      prefixIcon: Icon(Icons.phone_outlined),
+                      filled: true,
+                      fillColor: Colors.grey.withValues(alpha: 0.05),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(
+                          color: Colors.grey.withValues(alpha: 0.3),
+                        ),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(
+                          color: Colors.grey.withValues(alpha: 0.3),
+                        ),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(color: primaryColor, width: 2),
+                      ),
+                    ),
+                    keyboardType: TextInputType.phone,
+                    textInputAction: TextInputAction.next,
+                    onSaved: (value) {
+                      _phoneNumber = value!.trim();
+                    },
+                  ),
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    decoration: InputDecoration(
                       labelText: 'Şifre',
                       prefixIcon: Icon(Icons.lock_outlined),
                       suffixIcon: IconButton(
@@ -176,11 +215,15 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                       fillColor: Colors.grey.withValues(alpha: 0.05),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(color: Colors.grey.withValues(alpha: 0.3)),
+                        borderSide: BorderSide(
+                          color: Colors.grey.withValues(alpha: 0.3),
+                        ),
                       ),
                       enabledBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(color: Colors.grey.withValues(alpha: 0.3)),
+                        borderSide: BorderSide(
+                          color: Colors.grey.withValues(alpha: 0.3),
+                        ),
                       ),
                       focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
@@ -236,10 +279,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Text(
-                        'Zaten hesabın var mı?',
-                        style: TextStyle(),
-                      ),
+                      Text('Zaten hesabın var mı?', style: TextStyle()),
 
                       TextButton(
                         onPressed: () {

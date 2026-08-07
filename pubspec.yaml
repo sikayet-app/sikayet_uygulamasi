@@ -45,6 +45,7 @@ dependencies:
   shared_preferences: ^2.3.2 # kim giriş yapmış bilgisini hatırlamak için 
   dio: ^5.0.0
   geocoding: ^4.0.0
+  flutter_map_marker_cluster: ^1.4.0
 
 dev_dependencies:
   flutter_test:

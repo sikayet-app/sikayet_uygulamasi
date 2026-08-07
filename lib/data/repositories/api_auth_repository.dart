@@ -40,6 +40,7 @@ class ApiAuthRepository implements AuthRepository {
     required String name,
     required String email,
     required String password,
+    String? phoneNumber,
   }) async {
     try {
       final response = await _dio.post(
@@ -49,6 +50,7 @@ class ApiAuthRepository implements AuthRepository {
           'email': email,
           'password': password,
           'password_confirmation': password,
+          'phone_number': phoneNumber,
           'device_name': 'flutter_mobile',
         },
       );
