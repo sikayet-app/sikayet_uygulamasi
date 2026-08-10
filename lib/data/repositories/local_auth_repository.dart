@@ -26,6 +26,7 @@ class LocalAuthRepository implements AuthRepository {
       name: name,
       email: email,
       role: UserRole.citizen,
+      permissions: ['add_report'],
     );
 
     await _dbHelper.insertUser(user, passwordHash);
@@ -90,6 +91,17 @@ class LocalAuthRepository implements AuthRepository {
       name: 'Admin',
       email: 'admin@belediye.gov.tr',
       role: UserRole.admin,
+      permissions: [
+        'view_reports',
+        'edit_reports',
+        'delete_reports',
+        'update_report_status',
+        'assign_staff',
+        'view_users',
+        'edit_users',
+        'delete_users',
+        'add_report',
+      ],
     );
     await _dbHelper.insertUser(user, passwordHash);
   }

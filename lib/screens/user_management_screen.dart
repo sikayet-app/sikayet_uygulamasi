@@ -14,6 +14,7 @@ class UserManagementScreen extends ConsumerWidget {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
     final isAdmin = currentUser.role == UserRole.admin;
+    final canEditUsers = currentUser.permissions.contains('edit_users');
 
     List<UserRole> allowedFilterRoles = [];
     if (isAdmin) {
@@ -92,6 +93,7 @@ class UserManagementScreen extends ConsumerWidget {
               itemCount: users.length,
               itemBuilder: (context, index) {
                 final user = users[index];
+                final isSelf = user.id == currentUser.id;
                 return Card(
                   margin: const EdgeInsets.only(bottom: 12),
                   shape: RoundedRectangleBorder(
@@ -150,71 +152,82 @@ class UserManagementScreen extends ConsumerWidget {
                         ),
                       ],
                     ),
-                    trailing: IconButton(
-                      icon: Icon(Icons.person_remove, color: colorScheme.error),
-                      onPressed: () {
-                        showDialog(
-                          context: context,
-                          builder: (context) {
-                            return AlertDialog(
-                              title: const Text('Yetkiyi Al'),
-                              content: Text(
-                                '${user.name} isimli kullanıcının yetkisini almak istediğinize emin misiniz?',
-                              ),
-                              actions: [
-                                TextButton(
-                                  onPressed: () {
-                                    Navigator.pop(context);
-                                  },
-                                  child: const Text('İptal'),
-                                ),
-                                ElevatedButton(
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: colorScheme.error,
-                                    foregroundColor: colorScheme.onError,
-                                  ),
-                                  onPressed: () async {
-                                    try {
-                                      await ref
-                                          .read(authRepositoryProvider)
-                                          .updateUserRole(
-                                            user.id,
-                                            UserRole.citizen.name,
-                                          );
-                                      ref.invalidate(managingListProvider);
-                                      ref.invalidate(staffListProvider);
-                                      ref.invalidate(citizenListProvider);
-                                      ref.invalidate(filteredUserListProvider);
-                                      if (context.mounted) {
-                                        ScaffoldMessenger.of(
-                                          context,
-                                        ).showSnackBar(
-                                          const SnackBar(
-                                            content: Text(
-                                              'Kullanıcı rolü başarıyla güncellendi',
-                                            ),
-                                          ),
-                                        );
-                                        Navigator.pop(context);
-                                      }
-                                    } catch (e) {
-                                      if (context.mounted) {
-                                        ScaffoldMessenger.of(
-                                          context,
-                                        ).showSnackBar(
-                                          SnackBar(content: Text('Hata: $e')),
-                                        );
-                                      }
-                                    }
-                                  },
-                                  child: const Text('Onayla'),
-                                ),
-                              ],
-                            );
-                          },
-                        );
-                      },
-                    ),
+                    trailing: (canEditUsers && isSelf)
+                        ? IconButton(
+                            icon: Icon(
+                              Icons.person_remove,
+                              color: colorScheme.error,
+                            ),
+                            onPressed: () {
+                              showDialog(
+                                context: context,
+                                builder: (context) {
+                                  return AlertDialog(
+                                    title: const Text('Yetkiyi Al'),
+                                    content: Text(
+                                      '${user.name} isimli kullanıcının yetkisini almak istediğinize emin misiniz?',
+                                    ),
+                                    actions: [
+                                      TextButton(
+                                        onPressed: () {
+                                          Navigator.pop(context);
+                                        },
+                                        child: const Text('İptal'),
+                                      ),
+                                      ElevatedButton(
+                                        style: ElevatedButton.styleFrom(
+                                          backgroundColor: colorScheme.error,
+                                          foregroundColor: colorScheme.onError,
+                                        ),
+                                        onPressed: () async {
+                                          try {
+                                            await ref
+                                                .read(authRepositoryProvider)
+                                                .updateUserRole(
+                                                  user.id,
+                                                  UserRole.citizen.name,
+                                                );
+                                            ref.invalidate(
+                                              managingListProvider,
+                                            );
+                                            ref.invalidate(staffListProvider);
+                                            ref.invalidate(citizenListProvider);
+                                            ref.invalidate(
+                                              filteredUserListProvider,
+                                            );
+                                            if (context.mounted) {
+                                              ScaffoldMessenger.of(
+                                                context,
+                                              ).showSnackBar(
+                                                const SnackBar(
+                                                  content: Text(
+                                                    'Kullanıcı rolü başarıyla güncellendi',
+                                                  ),
+                                                ),
+                                              );
+                                              Navigator.pop(context);
+                                            }
+                                          } catch (e) {
+                                            if (context.mounted) {
+                                              ScaffoldMessenger.of(
+                                                context,
+                                              ).showSnackBar(
+                                                SnackBar(
+                                                  content: Text('Hata: $e'),
+                                                ),
+                                              );
+                                            }
+                                          }
+                                        },
+                                        child: const Text('Onayla'),
+                                      ),
+                                    ],
+                                  );
+                                },
+                              );
+                            },
+                          )
+                        : const SizedBox.shrink(),
                   ),
                 );
               },
@@ -224,26 +237,32 @@ class UserManagementScreen extends ConsumerWidget {
         error: (err, stack) => Center(child: Text('Bir hata oluştu: $err')),
         loading: () => const Center(child: CircularProgressIndicator()),
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        heroTag: 'user_manage_fab',
-        backgroundColor: colorScheme.primary,
-        foregroundColor: colorScheme.onPrimary,
-        onPressed: () {
-          final roleToCreate = isAdmin ? UserRole.managing : UserRole.staff;
-          showModalBottomSheet(
-            context: context,
-            isScrollControlled: true,
-            backgroundColor: colorScheme.surface,
-            shape: const RoundedRectangleBorder(
-              borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-            ),
-            builder: (context) =>
-                CitizenSelectionSheet(targetRole: roleToCreate),
-          );
-        },
-        icon: const Icon(Icons.person_add),
-        label: Text(isAdmin ? 'Sorumlu Ekle' : 'Personel Ekle'),
-      ),
+      floatingActionButton: canEditUsers
+          ? FloatingActionButton.extended(
+              heroTag: 'user_manage_fab',
+              backgroundColor: colorScheme.primary,
+              foregroundColor: colorScheme.onPrimary,
+              onPressed: () {
+                final roleToCreate = isAdmin
+                    ? UserRole.managing
+                    : UserRole.staff;
+                showModalBottomSheet(
+                  context: context,
+                  isScrollControlled: true,
+                  backgroundColor: colorScheme.surface,
+                  shape: const RoundedRectangleBorder(
+                    borderRadius: BorderRadius.vertical(
+                      top: Radius.circular(24),
+                    ),
+                  ),
+                  builder: (context) =>
+                      CitizenSelectionSheet(targetRole: roleToCreate),
+                );
+              },
+              icon: const Icon(Icons.person_add),
+              label: Text(isAdmin ? 'Sorumlu Ekle' : 'Personel Ekle'),
+            )
+          : null,
     );
   }
 }

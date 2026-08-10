@@ -6,6 +6,7 @@ class User {
   final String email;
   final UserRole role;
   final String? phoneNumber;
+  final List<String> permissions;
 
   User({
     required this.id,
@@ -13,6 +14,7 @@ class User {
     required this.email,
     required this.role,
     this.phoneNumber,
+    required this.permissions,
   });
 
   factory User.fromMap(Map<String, dynamic> map) {
@@ -25,6 +27,7 @@ class User {
         orElse: () => UserRole.citizen,
       ),
       phoneNumber: map['phone_number'] as String?,
+      permissions: List<String>.from(map['permissions'] ?? []),
     );
   }
 
@@ -35,6 +38,7 @@ class User {
       'email': email,
       'role': role.name,
       'phone_number': phoneNumber,
+      'permissions': permissions,
     };
   }
 
@@ -44,6 +48,7 @@ class User {
     String? email,
     UserRole? role,
     String? phoneNumber,
+    List<String>? permissions,
   }) {
     return User(
       id: id ?? this.id,
@@ -51,6 +56,7 @@ class User {
       email: email ?? this.email,
       role: role ?? this.role,
       phoneNumber: phoneNumber ?? this.phoneNumber,
+      permissions: permissions ?? this.permissions,
     );
   }
 }

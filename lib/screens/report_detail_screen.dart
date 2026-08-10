@@ -160,15 +160,19 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
   @override
   Widget build(BuildContext context) {
     final currentUser = ref.watch(currentUserProvider);
-    if (currentUser == null) return const SizedBox.shrink();
 
+    if (currentUser == null) return const SizedBox.shrink();
+    final canAssignStaff = currentUser.permissions.contains('assign_staff');
+    final canUpdateStatusPermission = currentUser.permissions.contains(
+      'update_report_status',
+    );
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
 
     final canEdit = _currentReport.canEditReport;
     final canDelete = _currentReport.canDeleteReport;
-    final canChangeStatus = _currentReport.canUpdateStatus;
-    final canAssign = _currentReport.canAssignReport;
+    final canChangeStatus = canUpdateStatusPermission;
+    final canAssign = canAssignStaff;
 
     return Scaffold(
       appBar: AppBar(
@@ -557,7 +561,7 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
                               ],
                             ),
                           ),
-                          if (canAssign)
+                          if (canAssignStaff)
                             FilledButton.icon(
                               icon: Icon(
                                 _currentReport.assignedStaffId != null

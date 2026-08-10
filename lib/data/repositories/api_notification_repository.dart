@@ -31,10 +31,10 @@ class ApiNotificationRepository implements NotificationRepository {
     );
   }
   @override
-  Future<List<AppNotification>> getNotifications({bool isRead = false}) async {
-    // parametreye göre atılacak endpoint
-    final endpoint = isRead ? '/notifications/read' : '/notifications/unread';
-    final response = await _dio.get(endpoint);
+  Future<List<AppNotification>> getNotifications() async {
+    
+    
+    final response = await _dio.get('/notifications');
     final List<dynamic> data = response.data['data'];
     return data.map((json) => AppNotification.fromMap(json)).toList();
   }

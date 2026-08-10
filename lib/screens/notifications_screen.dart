@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/src/widgets/framework.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sikayet_uygulamasi/providers/notification_provider.dart';
+import 'package:sikayet_uygulamasi/providers/report_provider.dart';
 import '../core/report_ui_helpers.dart';
+import 'report_detail_screen.dart';
 
 class NotificationsScreen extends ConsumerWidget {
   const NotificationsScreen({super.key});
@@ -78,6 +79,41 @@ class NotificationsScreen extends ConsumerWidget {
                           }
                         }
                       }
+                      // backend den gelen json içindeki sikayet id sini al
+                      final reportIdStr = notification.data['report_id']
+                          ?.toString();
+                      if (reportIdStr != null && context.mounted) {
+                        // o anki tüm şikayetler listesini al
+                        final reportAsyncValue = ref.read(reportListProvider);
+                        reportAsyncValue.whenData((reports) {
+                          try {
+                            final targetReport = reports.firstWhere(
+                              (r) => r.id == reportIdStr,
+                            );
+                            // şikayet bulunduysa detay sayfasına
+                            if (context.mounted) {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) =>
+                                      ReportDetailScreen(report: targetReport),
+                                ),
+                              );
+                            }
+                          } catch (e) {
+                            // eğer firstWhere şikayeti bulamazsa(şikayet silinmişse falan)
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text(
+                                    'Bu şikayet artık bulunamadı ve silinmiş',
+                                  ),
+                                ),
+                              );
+                            }
+                          }
+                        });
+                      }
                     },
                     child: Padding(
                       padding: const EdgeInsets.all(16.0),
@@ -85,12 +121,26 @@ class NotificationsScreen extends ConsumerWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            notification.data['message'] ?? 'Yeni bildirim',
+                            notification.data['title'] ?? 'Bildirim',
                             style: TextStyle(
                               fontSize: 16,
                               // okunmamışsa metni kalın yap
                               fontWeight: isUnread
                                   ? FontWeight.bold
+                                  : FontWeight.w600,
+                              color: Theme.of(context).colorScheme.onSurface,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            notification.data['message'] ?? '',
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: Theme.of(
+                                context,
+                              ).colorScheme.onSurfaceVariant,
+                              fontWeight: isUnread
+                                  ? FontWeight.w500
                                   : FontWeight.normal,
                             ),
                           ),

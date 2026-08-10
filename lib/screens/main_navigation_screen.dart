@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:sikayet_uygulamasi/data/models/user.dart';
+import 'package:sikayet_uygulamasi/screens/admin_dashboard_screen.dart';
 import 'package:sikayet_uygulamasi/screens/user_management_screen.dart';
 import 'home_screen.dart';
 import 'report_list_screen.dart';
@@ -28,7 +29,7 @@ class _MainNavigationScreenState extends ConsumerState<MainNavigationScreen> {
     final List<Widget> screens = [
       const HomeScreen(),
       const ReportListScreen(),
-      const UserManagementScreen(),
+      const AdminDashboardScreen(),
       const ProfileScreen(),
     ];
     return Scaffold(
@@ -73,7 +74,7 @@ class _MainNavigationScreenState extends ConsumerState<MainNavigationScreen> {
 
             if (canManageUsers)
               IconButton(
-                icon: const Icon(Icons.people_outlined),
+                icon: const Icon(Icons.dashboard),
                 onPressed: () {
                   setState(() {
                     _currentIndex = 2;
