@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
+import 'package:sikayet_uygulamasi/widgets/create_report_fab.dart';
 import '../data/models/report.dart';
 import '../core/location_service.dart';
 import '../providers/report_provider.dart';
@@ -54,6 +55,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   Widget build(BuildContext context) {
     final reportAsync = ref.watch(filteredReportListProvider);
     return Scaffold(
+      floatingActionButton: const CreateReportFab(),
+      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
       body: reportAsync.when(
         data: (reports) => Stack(
           children: [

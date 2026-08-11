@@ -6,7 +6,7 @@ import 'package:sikayet_uygulamasi/providers/report_provider.dart';
 import 'package:sikayet_uygulamasi/screens/create_report_screen.dart';
 import '../data/models/report.dart';
 import 'dart:io';
-import 'package:flutter/foundation.dart'; // kIsWeb kullanmayı sağlar.
+import 'package:flutter/foundation.dart';
 import '../data/models/user.dart';
 
 class ReportDetailScreen extends ConsumerStatefulWidget {
@@ -35,8 +35,7 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
           content: const Text('Şikayetinizi silmek istediğinize emin misiniz?'),
           actions: [
             TextButton(
-              onPressed: () =>
-                  Navigator.pop(dialogContext, false), // iptal seçeneği
+              onPressed: () => Navigator.pop(dialogContext, false),
               child: const Text('İptal'),
             ),
             ElevatedButton(
@@ -53,11 +52,8 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
     if (!context.mounted) return;
 
     try {
-      //onaylandıysa sil
       await ref.read(reportRepositoryProvider).deleteReport(_currentReport.id);
       ref.invalidate(reportListProvider);
-
-      //detay sayfasından çık
       if (context.mounted) {
         Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(
@@ -78,7 +74,6 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
 
   Future<String?> _showNoteDialog(ReportStatus newStatus) async {
     final controller = TextEditingController();
-
     final String? note = await showDialog<String>(
       context: context,
       builder: (BuildContext dialogContext) {
@@ -109,7 +104,6 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
 
   Future<User?> _showAssignDialog() async {
     final staffList = await ref.read(authRepositoryProvider).getStaffList();
-
     if (staffList.isEmpty) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -120,7 +114,6 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
       }
       return null;
     }
-
     if (!context.mounted) return null;
 
     return showDialog<User>(
@@ -157,17 +150,130 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
     );
   }
 
+  //  SÜREÇ TAKİBİ
+
+  Widget _buildProcessStepper(ColorScheme colorScheme, ReportStatus status) {
+    int currentStep = 0;
+    bool isError = false;
+
+    if (status == ReportStatus.inProgress) {
+      currentStep = 1;
+    } else if (status == ReportStatus.resolved) {
+      currentStep = 2;
+    } else if (status == ReportStatus.rejected ||
+        status == ReportStatus.invalid) {
+      currentStep = 2;
+      isError = true;
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
+      decoration: BoxDecoration(
+        color: colorScheme.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: colorScheme.outline.withValues(alpha: 0.15)),
+      ),
+      child: Row(
+        children: [
+          _buildStep(colorScheme, 'Bildirildi', true, false, true),
+          _buildLine(colorScheme, currentStep >= 1),
+          _buildStep(colorScheme, 'İşlemde', currentStep >= 1, false, false),
+          _buildLine(colorScheme, currentStep >= 2),
+          _buildStep(
+            colorScheme,
+            isError ? getStatusLabel(status) : 'Çözüldü',
+            currentStep >= 2,
+            isError,
+            false,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStep(
+    ColorScheme colorScheme,
+    String label,
+    bool isActive,
+    bool isError,
+    bool isFirst,
+  ) {
+    Color circleColor = colorScheme.surfaceContainerHighest;
+    Color iconColor = colorScheme.outline;
+    IconData icon = Icons.circle;
+    double iconSize = 12;
+
+    if (isActive) {
+      if (isError) {
+        circleColor = colorScheme.error;
+        iconColor = colorScheme.onError;
+        icon = Icons.close;
+        iconSize = 16;
+      } else {
+        circleColor = const Color(
+          0xFF1E293B,
+        ); // Koyu Lacivert (Tasarımdaki gibi)
+        iconColor = Colors.white;
+        icon = Icons.check;
+        iconSize = 16;
+      }
+    }
+
+    return Column(
+      children: [
+        Container(
+          width: 28,
+          height: 28,
+          decoration: BoxDecoration(color: circleColor, shape: BoxShape.circle),
+          child: Icon(icon, color: iconColor, size: iconSize),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
+            color: isActive
+                ? (isError ? colorScheme.error : colorScheme.onSurface)
+                : colorScheme.outline,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildLine(ColorScheme colorScheme, bool isActive) {
+    return Expanded(
+      child: Container(
+        margin: const EdgeInsets.only(
+          bottom: 24,
+          left: 8,
+          right: 8,
+        ), // Metin boşluğunu telafi etmek için margin
+        height: 3,
+        decoration: BoxDecoration(
+          color: isActive
+              ? const Color(0xFF1E293B)
+              : colorScheme.surfaceContainerHighest,
+          borderRadius: BorderRadius.circular(2),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final currentUser = ref.watch(currentUserProvider);
-
     if (currentUser == null) return const SizedBox.shrink();
+
     final canAssignStaff = currentUser.permissions.contains('assign_staff');
     final canUpdateStatusPermission = currentUser.permissions.contains(
       'update_report_status',
     );
+
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
+    final isDarkMode = theme.brightness == Brightness.dark;
 
     final canEdit = _currentReport.canEditReport;
     final canDelete = _currentReport.canDeleteReport;
@@ -175,10 +281,16 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
     final canAssign = canAssignStaff;
 
     return Scaffold(
+      backgroundColor: isDarkMode ? colorScheme.surface : Colors.grey.shade50,
       appBar: AppBar(
-        title: const Text('Şikayet Detayı'),
+        title: const Text(
+          'Talep Detayı',
+          style: TextStyle(fontWeight: FontWeight.w600, fontSize: 18),
+        ),
         centerTitle: true,
         elevation: 0,
+        backgroundColor: isDarkMode ? colorScheme.surface : Colors.grey.shade50,
+        foregroundColor: colorScheme.onSurface,
         actions: [
           if (canEdit)
             IconButton(
@@ -201,7 +313,7 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
           if (canDelete)
             IconButton(
               onPressed: () => _confirmAndDelete(context, ref),
-              icon: const Icon(Icons.delete_outline),
+              icon: Icon(Icons.delete_outline, color: colorScheme.error),
             ),
         ],
       ),
@@ -209,11 +321,11 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // DİNAMİK FOTOĞRAF ALANI
+            // FOTOĞRAF ALANI
             if (_currentReport.imagePaths.isNotEmpty)
               _currentReport.imagePaths.length == 1
                   ? SizedBox(
-                      height: 250,
+                      height: 280,
                       width: double.infinity,
                       child:
                           _currentReport.imagePaths.first.startsWith('http') ||
@@ -222,15 +334,7 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
                               _currentReport.imagePaths.first,
                               fit: BoxFit.cover,
                               errorBuilder: (context, error, stackTrace) =>
-                                  Container(
-                                    height: 250,
-                                    width: double.infinity,
-                                    color: colorScheme.surfaceContainerHighest,
-                                    child: Icon(
-                                      Icons.broken_image,
-                                      color: colorScheme.outline,
-                                    ),
-                                  ),
+                                  _buildImageError(colorScheme),
                             )
                           : Image.file(
                               File(_currentReport.imagePaths.first),
@@ -238,11 +342,11 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
                             ),
                     )
                   : SizedBox(
-                      height: 200,
+                      height: 240,
                       child: ListView.builder(
                         scrollDirection: Axis.horizontal,
                         padding: const EdgeInsets.symmetric(
-                          horizontal: 20,
+                          horizontal: 16,
                           vertical: 8,
                         ),
                         itemCount: _currentReport.imagePaths.length,
@@ -251,9 +355,9 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
                           return Padding(
                             padding: const EdgeInsets.only(right: 12.0),
                             child: ClipRRect(
-                              borderRadius: BorderRadius.circular(12),
+                              borderRadius: BorderRadius.circular(16),
                               child: SizedBox(
-                                width: 280,
+                                width: 300,
                                 child: image.startsWith('http') || kIsWeb
                                     ? Image.network(image, fit: BoxFit.cover)
                                     : Image.file(
@@ -267,55 +371,35 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
                       ),
                     ),
 
-            // İÇERİK ALANI
+            //  İÇERİK ALANI
             Padding(
               padding: const EdgeInsets.all(20.0),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // HİYERARŞİ 1: KATEGORİ VE DURUM ETİKETLERİ
+                  // Kategori ve Durum Değiştirme Butonu
                   Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 6,
-                        ),
-                        decoration: BoxDecoration(
-                          color: colorScheme.surfaceContainerHighest.withValues(
-                            alpha: 0.5,
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.label_outline,
+                            size: 18,
+                            color: colorScheme.primary,
                           ),
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: Text(
-                          getCategoryLabel(_currentReport.category),
-                          style: TextStyle(
-                            color: colorScheme.onSurfaceVariant,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ),
-                      const Spacer(),
-                      if (!canChangeStatus)
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 6,
-                          ),
-                          decoration: BoxDecoration(
-                            color: colorForStatus(
-                              _currentReport.status,
-                            ).withValues(alpha: 0.15),
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                          child: Text(
-                            getStatusLabel(_currentReport.status),
+                          const SizedBox(width: 6),
+                          Text(
+                            getCategoryLabel(_currentReport.category),
                             style: TextStyle(
-                              color: colorForStatus(_currentReport.status),
-                              fontWeight: FontWeight.bold,
+                              color: colorScheme.primary,
+                              fontWeight: FontWeight.w600,
+                              fontSize: 14,
                             ),
                           ),
-                        ),
+                        ],
+                      ),
+                      // Yöneticiler için durumu güncelleme butonu
                       if (canChangeStatus)
                         PopupMenuButton<ReportStatus>(
                           onSelected: (ReportStatus newStatus) async {
@@ -351,31 +435,28 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
                           child: Container(
                             padding: const EdgeInsets.symmetric(
                               horizontal: 12,
-                              vertical: 6,
+                              vertical: 8,
                             ),
                             decoration: BoxDecoration(
-                              color: colorForStatus(
-                                _currentReport.status,
-                              ).withValues(alpha: 0.15),
+                              color: colorScheme.primary.withValues(alpha: 0.1),
                               borderRadius: BorderRadius.circular(20),
                             ),
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
                                 Text(
-                                  getStatusLabel(_currentReport.status),
+                                  'Durumu Güncelle',
                                   style: TextStyle(
-                                    color: colorForStatus(
-                                      _currentReport.status,
-                                    ),
+                                    color: colorScheme.primary,
                                     fontWeight: FontWeight.bold,
+                                    fontSize: 12,
                                   ),
                                 ),
                                 const SizedBox(width: 4),
                                 Icon(
                                   Icons.arrow_drop_down,
-                                  size: 18,
-                                  color: colorForStatus(_currentReport.status),
+                                  size: 16,
+                                  color: colorScheme.primary,
                                 ),
                               ],
                             ),
@@ -383,148 +464,85 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
                         ),
                     ],
                   ),
-
                   const SizedBox(height: 16),
 
-                  // HİYERARŞİ 2: BAŞLIK VE TARİH
+                  // Başlık ve Tarih
                   Text(
                     _currentReport.title,
                     style: const TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
+                      fontSize: 26,
+                      fontWeight: FontWeight.w800,
                       height: 1.2,
                     ),
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 8),
                   Row(
                     children: [
                       Icon(
                         Icons.access_time,
-                        size: 16,
+                        size: 14,
                         color: colorScheme.outline,
                       ),
                       const SizedBox(width: 6),
                       Text(
                         getFormattedDate(_currentReport.createdAt),
-                        style: TextStyle(color: colorScheme.outline),
-                      ),
-                    ],
-                  ),
-
-                  // Admin veya yetkili personel ise gönderen ve iletişim bilgisini göster
-                  if (canChangeStatus || canAssign) ...[
-                    const SizedBox(height: 12),
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: colorScheme.surfaceContainerHighest.withValues(
-                          alpha: 0.3,
-                        ),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              Icon(
-                                Icons.person_outline,
-                                size: 18,
-                                color: colorScheme.primary,
-                              ),
-                              const SizedBox(width: 8),
-                              Text(
-                                'Gönderen: ${_currentReport.senderName ?? "Bilinmiyor"}',
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w500,
-                                  color: colorScheme.onSurface,
-                                ),
-                              ),
-                            ],
-                          ),
-                          if (_currentReport.contactPhone != null &&
-                              _currentReport.contactPhone!.isNotEmpty) ...[
-                            const SizedBox(height: 6),
-                            Row(
-                              children: [
-                                Icon(
-                                  Icons.phone_outlined,
-                                  size: 18,
-                                  color: colorScheme.primary,
-                                ),
-                                const SizedBox(width: 8),
-                                SelectableText(
-                                  'İletişim: ${_currentReport.contactPhone}',
-                                  style: TextStyle(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.bold,
-                                    color: colorScheme.primary,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ],
-                      ),
-                    ),
-                  ],
-
-                  const SizedBox(height: 16),
-
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Icon(
-                        Icons.location_on_outlined,
-                        size: 20,
-                        color: colorScheme.primary,
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          _currentReport.fullAddress ??
-                              'Adres bilgisi bulunmuyor',
-                          style: TextStyle(
-                            fontSize: 15,
-                            color: colorScheme.onSurface,
-                            fontWeight: FontWeight.w500,
-                          ),
+                        style: TextStyle(
+                          color: colorScheme.outline,
+                          fontSize: 13,
                         ),
                       ),
                     ],
                   ),
-
                   const SizedBox(height: 24),
 
-                  Divider(
-                    height: 32,
-                    color: colorScheme.outline.withValues(alpha: 0.2),
-                  ),
+                  // SÜREÇ TAKİBİ BİLEŞENİ
+                  _buildProcessStepper(colorScheme, _currentReport.status),
+                  const SizedBox(height: 24),
 
-                  // HİYERARŞİ 3: AÇIKLAMA METNİ
+                  // Açıklama Metni
                   Text(
                     _currentReport.description,
                     style: TextStyle(
                       fontSize: 16,
                       height: 1.6,
-                      color: colorScheme.onSurface,
+                      color: colorScheme.onSurfaceVariant,
                     ),
                   ),
-
                   const SizedBox(height: 32),
 
-                  // HİYERARŞİ 4: ATAMA VE NOT BÖLÜMÜ
+                  // İLETİŞİM VE ADRES KARTLARI
+                  if (canChangeStatus || canAssign) ...[
+                    _buildInfoCard(
+                      colorScheme,
+                      Icons.person_outline,
+                      'Gönderen Bilgileri',
+                      _currentReport.senderName ?? "Bilinmiyor",
+                      subtext:
+                          _currentReport.contactPhone != null &&
+                              _currentReport.contactPhone!.isNotEmpty
+                          ? 'İletişim: ${_currentReport.contactPhone}'
+                          : null,
+                    ),
+                    const SizedBox(height: 12),
+                  ],
+
+                  _buildInfoCard(
+                    colorScheme,
+                    Icons.location_on_outlined,
+                    'Açık Adres',
+                    _currentReport.fullAddress ?? 'Adres bilgisi bulunmuyor',
+                  ),
+                  const SizedBox(height: 24),
+
+                  // PERSONEL ATAMA VE ÇÖZÜM NOTU ALANI
                   if (_currentReport.assignedStaffId != null || canAssign) ...[
                     Container(
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
-                        color: colorScheme.surfaceContainerHighest.withValues(
-                          alpha: 0.3,
-                        ),
-                        borderRadius: BorderRadius.circular(12),
+                        color: colorScheme.surface,
+                        borderRadius: BorderRadius.circular(16),
                         border: Border.all(
-                          color: colorScheme.outline.withValues(alpha: 0.2),
+                          color: colorScheme.outline.withValues(alpha: 0.15),
                         ),
                       ),
                       child: Row(
@@ -542,7 +560,7 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
                                     color: colorScheme.primary,
                                   ),
                                 ),
-                                const SizedBox(height: 4),
+                                const SizedBox(height: 6),
                                 Text(
                                   _currentReport.assignedStaffName ??
                                       'Henüz personel atanmadı',
@@ -573,6 +591,11 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
                                 _currentReport.assignedStaffId != null
                                     ? 'Değiştir'
                                     : 'Ata',
+                              ),
+                              style: FilledButton.styleFrom(
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
                               ),
                               onPressed: () async {
                                 final selectedStaff = await _showAssignDialog();
@@ -633,6 +656,7 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
                       ),
                     ),
                   ],
+
                   if (_currentReport.resolutionNote != null &&
                       _currentReport.resolutionNote!.isNotEmpty) ...[
                     const SizedBox(height: 16),
@@ -640,12 +664,14 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
                       width: double.infinity,
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
-                        color: colorScheme.surfaceContainerHighest.withValues(
-                          alpha: 0.5,
-                        ),
-                        borderRadius: BorderRadius.circular(12),
+                        color: colorForStatus(
+                          _currentReport.status,
+                        ).withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(16),
                         border: Border.all(
-                          color: colorScheme.outline.withValues(alpha: 0.2),
+                          color: colorForStatus(
+                            _currentReport.status,
+                          ).withValues(alpha: 0.2),
                         ),
                       ),
                       child: Column(
@@ -656,14 +682,14 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
                               Icon(
                                 Icons.info_outline,
                                 size: 18,
-                                color: colorScheme.primary,
+                                color: colorForStatus(_currentReport.status),
                               ),
                               const SizedBox(width: 8),
                               Text(
                                 'Çözüm Notu',
                                 style: TextStyle(
                                   fontWeight: FontWeight.bold,
-                                  color: colorScheme.primary,
+                                  color: colorForStatus(_currentReport.status),
                                 ),
                               ),
                             ],
@@ -680,12 +706,81 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
                       ),
                     ),
                   ],
+                  const SizedBox(height: 40),
                 ],
               ),
             ),
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildInfoCard(
+    ColorScheme colorScheme,
+    IconData icon,
+    String title,
+    String mainText, {
+    String? subtext,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: colorScheme.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: colorScheme.outline.withValues(alpha: 0.15)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, size: 20, color: colorScheme.primary),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                    color: colorScheme.primary,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  mainText,
+                  style: TextStyle(
+                    fontSize: 15,
+                    color: colorScheme.onSurface,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                if (subtext != null) ...[
+                  const SizedBox(height: 4),
+                  SelectableText(
+                    subtext,
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildImageError(ColorScheme colorScheme) {
+    return Container(
+      height: 280,
+      width: double.infinity,
+      color: colorScheme.surfaceContainerHighest,
+      child: Icon(Icons.broken_image, color: colorScheme.outline, size: 48),
     );
   }
 }

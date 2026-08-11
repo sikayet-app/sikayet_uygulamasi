@@ -21,3 +21,18 @@ Color colorForStatus(ReportStatus status) {
 String getFormattedDate(DateTime date) {
   return DateFormat('dd.MM.yyyy HH:mm').format(date);
 }
+
+IconData getCategoryIcon(ReportCategory category) {
+  switch (category) {
+    case ReportCategory.infrastructure:
+    return Icons.construction;
+    case ReportCategory.lighting:
+    return Icons.lightbulb_outline;
+    case ReportCategory.garbage:
+    return Icons.delete_outline;
+    case ReportCategory.pothole:
+    return Icons.edit_road;
+    case ReportCategory.other:
+    return Icons.label_outline;
+  }
+}

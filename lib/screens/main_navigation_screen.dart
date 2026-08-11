@@ -26,76 +26,50 @@ class _MainNavigationScreenState extends ConsumerState<MainNavigationScreen> {
     final user = ref.watch(currentUserProvider);
     final canManageUsers =
         user?.role == UserRole.admin || user?.role == UserRole.managing;
+    final colorScheme = Theme.of(context).colorScheme;
     final List<Widget> screens = [
       const HomeScreen(),
       const ReportListScreen(),
-      const AdminDashboardScreen(),
+      if (canManageUsers) const AdminDashboardScreen(),
       const ProfileScreen(),
     ];
     return Scaffold(
       body: IndexedStack(index: _currentIndex, children: screens),
-      floatingActionButton: FloatingActionButton(
-        heroTag: 'main_add_fab',
-        onPressed: () {
-          Navigator.of(context).push(
-            MaterialPageRoute(builder: (context) => const CreateReportScreen()),
-          );
+     
+      bottomNavigationBar: NavigationBar(
+        selectedIndex: _currentIndex,
+        elevation: 0,
+        backgroundColor: colorScheme.surface,
+        indicatorColor: colorScheme.primary.withValues(alpha: 0.2),
+        onDestinationSelected: (index) {
+          setState(() {
+            _currentIndex = index;
+          });
         },
-        child: const Icon(Icons.add),
-      ),
-      floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
-      bottomNavigationBar: BottomAppBar(
-        shape: const CircularNotchedRectangle(),
-        notchMargin: 8.0,
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceAround,
-          children: [
-            IconButton(
-              icon: const Icon(Icons.map_outlined),
-              // eğer seçiliyse mavi, değilse gri yap
-              color: _currentIndex == 0 ? Colors.blue : Colors.grey,
-              onPressed: () {
-                setState(() {
-                  _currentIndex = 0;
-                });
-              },
-            ),
+        destinations: [
+          const NavigationDestination(
+            icon: Icon(Icons.map_outlined),
+            selectedIcon: Icon(Icons.map),
+            label: 'Harita',
+          ),
 
-            IconButton(
-              icon: const Icon(Icons.list_alt),
-              color: _currentIndex == 1 ? Colors.blue : Colors.grey,
-              onPressed: () {
-                setState(() {
-                  _currentIndex = 1;
-                });
-              },
+          const NavigationDestination(
+            icon: Icon(Icons.list_alt),
+            selectedIcon: Icon(Icons.view_list),
+            label: 'Kayıtlar',
+          ),
+          if (canManageUsers)
+            const NavigationDestination(
+              icon: Icon(Icons.dashboard_outlined),
+              selectedIcon: Icon(Icons.dashboard),
+              label: 'Yönetim',
             ),
-            const SizedBox(width: 40),
-
-            if (canManageUsers)
-              IconButton(
-                icon: const Icon(Icons.dashboard),
-                onPressed: () {
-                  setState(() {
-                    _currentIndex = 2;
-                  });
-                },
-                color: _currentIndex == 2 ? Colors.blue : Colors.grey,
-              ),
-
-            IconButton(
-              icon: const Icon(Icons.person_outline),
-              color: _currentIndex == screens.length - 1
-                  ? Colors.blue
-                  : Colors.grey,
-              onPressed: () {
-                setState(() {
-                  _currentIndex = screens.length - 1;
-                });
-              },
-            ),
-          ],
-        ),
+          const NavigationDestination(
+            icon: Icon(Icons.person_outline),
+            selectedIcon: Icon(Icons.person),
+            label: 'Profil',
+          ),
+        ],
       ),
     );
   }
