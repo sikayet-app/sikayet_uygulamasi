@@ -10,6 +10,7 @@ import '../data/models/report.dart';
 import 'report_detail_screen.dart';
 import '../data/models/user.dart';
 import '../widgets/notification_bell.dart';
+import '../core/app_colors.dart'; // YENİ: Merkezi renk dosyamız
 
 class ReportListScreen extends ConsumerWidget {
   const ReportListScreen({super.key});
@@ -17,8 +18,7 @@ class ReportListScreen extends ConsumerWidget {
   String _getPageTitle(UserRole? role) {
     if (role == UserRole.citizen) return 'Taleplerim';
     if (role == UserRole.staff) return 'Görevlerim';
-    if (role == UserRole.admin || role == UserRole.managing)
-      return 'Tüm Kayıtlar';
+    if (role == UserRole.admin || role == UserRole.managing) return 'Tüm Kayıtlar';
     return 'Bildirim Listesi';
   }
 
@@ -26,7 +26,6 @@ class ReportListScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final reportAsync = ref.watch(filteredReportListProvider);
     final currentUser = ref.watch(currentUserProvider);
-    //final showSenderInfo = currentUser != null && currentUser.role != UserRole.citizen;
     final currentStatus = ref.watch(filterStatusProvider);
     final isCitizen = currentUser?.role == UserRole.citizen;
 
@@ -35,16 +34,14 @@ class ReportListScreen extends ConsumerWidget {
     final colorScheme = theme.colorScheme;
     final isDarkMode = theme.brightness == Brightness.dark;
 
-    final appBarBgColor = isDarkMode
-        ? colorScheme.surface
-        : const Color(0xFF1E293B);
+    // DÜZELTME: AppColors.navy kullanımı
+    final appBarBgColor = isDarkMode ? colorScheme.surface : AppColors.navy;
     final appBarFgColor = isDarkMode ? colorScheme.onSurface : Colors.white;
-    final appBarSubtitleColor = isDarkMode
-        ? colorScheme.onSurfaceVariant
-        : Colors.grey.shade400;
+    final appBarSubtitleColor = isDarkMode ? colorScheme.onSurfaceVariant : Colors.grey.shade400;
 
     return Scaffold(
-      backgroundColor: isDarkMode ? colorScheme.surface : Colors.grey.shade50,
+      // DÜZELTME: AppColors.surfaceWarmLight kullanımı
+      backgroundColor: isDarkMode ? colorScheme.surface : AppColors.surfaceWarmLight,
       appBar: AppBar(
         elevation: 0,
         backgroundColor: appBarBgColor,
@@ -62,7 +59,7 @@ class ReportListScreen extends ConsumerWidget {
             ),
             Text(
               _getPageTitle(currentUser?.role),
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
             ),
           ],
         ),
@@ -104,25 +101,17 @@ class ReportListScreen extends ConsumerWidget {
                       label: const Text('Tümü'),
                       selected: currentStatus == null,
                       onSelected: (selected) {
-                        if (selected)
-                          ref.read(filterStatusProvider.notifier).state = null;
+                        if (selected) ref.read(filterStatusProvider.notifier).state = null;
                       },
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(20),
                       ),
-                      backgroundColor: isDarkMode
-                          ? colorScheme.surfaceContainerHighest
-                          : Colors.grey.shade100,
-                      selectedColor: isDarkMode
-                          ? colorScheme.primary.withValues(alpha: 0.3)
-                          : const Color(0xFF1E293B),
+                      backgroundColor: isDarkMode ? colorScheme.surfaceContainerHighest : Colors.grey.shade100,
+                      // DÜZELTME: AppColors.navy kullanımı
+                      selectedColor: isDarkMode ? colorScheme.primary.withValues(alpha: 0.3) : AppColors.navy,
                       labelStyle: TextStyle(
-                        color: currentStatus == null
-                            ? (isDarkMode ? colorScheme.primary : Colors.white)
-                            : colorScheme.onSurfaceVariant,
-                        fontWeight: currentStatus == null
-                            ? FontWeight.bold
-                            : FontWeight.normal,
+                        color: currentStatus == null ? (isDarkMode ? colorScheme.primary : Colors.white) : colorScheme.onSurfaceVariant,
+                        fontWeight: currentStatus == null ? FontWeight.bold : FontWeight.normal,
                       ),
                       side: BorderSide.none,
                     ),
@@ -135,28 +124,17 @@ class ReportListScreen extends ConsumerWidget {
                         label: Text(getStatusLabel(status)),
                         selected: isSelected,
                         onSelected: (selected) {
-                          if (selected)
-                            ref.read(filterStatusProvider.notifier).state =
-                                status;
+                          if (selected) ref.read(filterStatusProvider.notifier).state = status;
                         },
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(20),
                         ),
-                        backgroundColor: isDarkMode
-                            ? colorScheme.surfaceContainerHighest
-                            : Colors.grey.shade100,
-                        selectedColor: isDarkMode
-                            ? colorScheme.primary.withValues(alpha: 0.3)
-                            : const Color(0xFF1E293B),
+                        backgroundColor: isDarkMode ? colorScheme.surfaceContainerHighest : Colors.grey.shade100,
+                        // DÜZELTME: AppColors.navy kullanımı
+                        selectedColor: isDarkMode ? colorScheme.primary.withValues(alpha: 0.3) : AppColors.navy,
                         labelStyle: TextStyle(
-                          color: isSelected
-                              ? (isDarkMode
-                                    ? colorScheme.primary
-                                    : Colors.white)
-                              : colorScheme.onSurfaceVariant,
-                          fontWeight: isSelected
-                              ? FontWeight.bold
-                              : FontWeight.normal,
+                          color: isSelected ? (isDarkMode ? colorScheme.primary : Colors.white) : colorScheme.onSurfaceVariant,
+                          fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
                         ),
                         side: BorderSide.none,
                       ),
@@ -166,7 +144,7 @@ class ReportListScreen extends ConsumerWidget {
               ),
             ),
           ),
-
+          
           // LİSTE ALANI
           Expanded(
             child: reportAsync.when(
@@ -203,33 +181,21 @@ class ReportListScreen extends ConsumerWidget {
                     itemCount: reports.length,
                     itemBuilder: (context, index) {
                       final report = reports[index];
-                      final senderName = report.senderName ?? 'Bilinmiyor';
-                      final statusColor = colorForStatus(report.status);
-
+                      // DÜZELTME: Karanlık tema destekli dinamik renk
+                      final statusColor = colorForStatus(report.status, isDarkMode: isDarkMode);
+                      
                       return GestureDetector(
                         onTap: () {
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (context) =>
-                                  ReportDetailScreen(report: report),
+                              builder: (context) => ReportDetailScreen(report: report),
                             ),
                           );
                         },
-
                         child: isCitizen
-                            ? _buildCitizenCard(
-                                report,
-                                statusColor,
-                                colorScheme,
-                                isDarkMode,
-                              )
-                            : _buildStaffCard(
-                                report,
-                                statusColor,
-                                colorScheme,
-                                isDarkMode,
-                              ),
+                            ? _buildCitizenCard(report, statusColor, colorScheme, isDarkMode)
+                            : _buildStaffCard(report, statusColor, colorScheme, isDarkMode),
                       );
                     },
                   ),
@@ -250,27 +216,20 @@ class ReportListScreen extends ConsumerWidget {
   }
 
   // vatandaş görünümü
-  Widget _buildCitizenCard(
-    Report report,
-    Color statusColor,
-    ColorScheme colorScheme,
-    bool isDarkMode,
-  ) {
+  Widget _buildCitizenCard(Report report, Color statusColor, ColorScheme colorScheme, bool isDarkMode) {
     return Container(
       margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
       decoration: BoxDecoration(
         color: colorScheme.surface,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: colorScheme.outline.withValues(alpha: 0.15)),
-        boxShadow: isDarkMode
-            ? []
-            : [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.03),
-                  blurRadius: 10,
-                  offset: const Offset(0, 4),
-                ),
-              ],
+        boxShadow: isDarkMode ? [] : [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.03),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
       child: IntrinsicHeight(
         child: Row(
@@ -312,12 +271,10 @@ class ReportListScreen extends ConsumerWidget {
                         ),
                         const Spacer(),
                         Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 4,
-                          ),
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                           decoration: BoxDecoration(
-                            color: statusColor.withValues(alpha: 0.1),
+                            // DÜZELTME: Yeni tint helper'ı kullanımı
+                            color: getStatusBgColor(report.status, isDarkMode: isDarkMode), 
                             borderRadius: BorderRadius.circular(8),
                           ),
                           child: Text(
@@ -352,7 +309,7 @@ class ReportListScreen extends ConsumerWidget {
                       ),
                     ),
                     const SizedBox(height: 12),
-                    // Adres ve Gönderen
+                    // Adres
                     Row(
                       children: [
                         Icon(
@@ -386,20 +343,17 @@ class ReportListScreen extends ConsumerWidget {
                   borderRadius: BorderRadius.circular(8),
                   child: SizedBox(
                     width: 85,
-                    height:
-                        100, // Yüksekliği hafif artırdık, IntrinsicHeight ile uyumlu esner
+                    height: 100,
                     child: report.imagePaths.first.startsWith('http') || kIsWeb
                         ? Image.network(
                             report.imagePaths.first,
                             fit: BoxFit.cover,
-                            errorBuilder: (context, error, stackTrace) =>
-                                _buildPlaceholderImage(colorScheme),
+                            errorBuilder: (context, error, stackTrace) => _buildPlaceholderImage(colorScheme),
                           )
                         : Image.file(
                             File(report.imagePaths.first),
                             fit: BoxFit.cover,
-                            errorBuilder: (context, error, stackTrace) =>
-                                _buildPlaceholderImage(colorScheme),
+                            errorBuilder: (context, error, stackTrace) => _buildPlaceholderImage(colorScheme),
                           ),
                   ),
                 ),
@@ -418,12 +372,7 @@ class ReportListScreen extends ConsumerWidget {
   }
 
   // personel ve yönetici görünümü
-  Widget _buildStaffCard(
-    Report report,
-    Color statusColor,
-    ColorScheme colorScheme,
-    bool isDarkMode,
-  ) {
+  Widget _buildStaffCard(Report report, Color statusColor, ColorScheme colorScheme, bool isDarkMode) {
     return Container(
       margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 16),
       padding: const EdgeInsets.all(12),
@@ -431,26 +380,25 @@ class ReportListScreen extends ConsumerWidget {
         color: colorScheme.surface,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: colorScheme.outline.withValues(alpha: 0.15)),
-        boxShadow: isDarkMode
-            ? []
-            : [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.02),
-                  blurRadius: 5,
-                  offset: const Offset(0, 2),
-                ),
-              ],
+        boxShadow: isDarkMode ? [] : [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.02),
+            blurRadius: 5,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          // avatar
+          // avatar / kategori ikonu
           Container(
             width: 44,
             height: 44,
             decoration: BoxDecoration(
-              color: statusColor.withValues(alpha: 0.15),
-              shape: BoxShape.circle,
+              // DÜZELTME: Yeni tint helper'ı ve kare köşe (Squircle) tasarımı
+              color: getStatusBgColor(report.status, isDarkMode: isDarkMode),
+              borderRadius: BorderRadius.circular(8), 
             ),
             child: Icon(
               getCategoryIcon(report.category),
@@ -513,8 +461,7 @@ class FilterDrawerContent extends ConsumerStatefulWidget {
   const FilterDrawerContent({super.key});
 
   @override
-  ConsumerState<FilterDrawerContent> createState() =>
-      _FilterDrawerContentState();
+  ConsumerState<FilterDrawerContent> createState() => _FilterDrawerContentState();
 }
 
 class _FilterDrawerContentState extends ConsumerState<FilterDrawerContent> {
@@ -530,7 +477,7 @@ class _FilterDrawerContentState extends ConsumerState<FilterDrawerContent> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
-
+    
     return Column(
       children: [
         Expanded(
@@ -574,14 +521,18 @@ class _FilterDrawerContentState extends ConsumerState<FilterDrawerContent> {
                       'Kategori',
                       style: TextStyle(fontWeight: FontWeight.w600),
                     ),
-                    initiallyExpanded:
-                        true, // Zaten tek filtre olduğu için açık gelsin
+                    initiallyExpanded: true,
                     children: [
                       Wrap(
                         spacing: 8.0,
                         runSpacing: 8.0,
                         children: [
                           FilterChip(
+                            avatar: Icon(
+                              Icons.category,
+                              size: 16,
+                              color: _tempCategory == null ? colorScheme.primary : colorScheme.onSurfaceVariant,
+                            ),
                             label: const Text('Tüm Kategoriler'),
                             selected: _tempCategory == null,
                             onSelected: (_) {
@@ -589,11 +540,8 @@ class _FilterDrawerContentState extends ConsumerState<FilterDrawerContent> {
                                 _tempCategory = null;
                               });
                             },
-                            backgroundColor: colorScheme.surfaceContainerHighest
-                                .withValues(alpha: 0.5),
-                            selectedColor: colorScheme.primary.withValues(
-                              alpha: 0.2,
-                            ),
+                            backgroundColor: colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+                            selectedColor: colorScheme.primary.withValues(alpha: 0.2),
                             side: BorderSide.none,
                           ),
                           ...ReportCategory.values.map((category) {
@@ -602,9 +550,7 @@ class _FilterDrawerContentState extends ConsumerState<FilterDrawerContent> {
                               avatar: Icon(
                                 getCategoryIcon(category),
                                 size: 16,
-                                color: isSelected
-                                    ? colorScheme.primary
-                                    : colorScheme.onSurfaceVariant,
+                                color: isSelected ? colorScheme.primary : colorScheme.onSurfaceVariant,
                               ),
                               label: Text(getCategoryLabel(category)),
                               selected: isSelected,
@@ -613,12 +559,8 @@ class _FilterDrawerContentState extends ConsumerState<FilterDrawerContent> {
                                   _tempCategory = isSelected ? null : category;
                                 });
                               },
-                              backgroundColor: colorScheme
-                                  .surfaceContainerHighest
-                                  .withValues(alpha: 0.5),
-                              selectedColor: colorScheme.primary.withValues(
-                                alpha: 0.2,
-                              ),
+                              backgroundColor: colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+                              selectedColor: colorScheme.primary.withValues(alpha: 0.2),
                               side: BorderSide.none,
                             );
                           }).toList(),
@@ -638,7 +580,6 @@ class _FilterDrawerContentState extends ConsumerState<FilterDrawerContent> {
               minimumSize: const Size(double.infinity, 48),
             ),
             onPressed: () {
-              // Sadece kategori provider'ını güncelliyoruz, durum (status) zaten ana ekrandan yönetiliyor
               ref.read(filterCategoryProvider.notifier).state = _tempCategory;
               Navigator.pop(context);
             },

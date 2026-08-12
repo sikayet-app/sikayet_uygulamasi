@@ -8,9 +8,11 @@ import '../data/models/report.dart';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import '../data/models/user.dart';
+import '../core/app_colors.dart'; // YENİ: Merkezi renk dosyamız
 
 class ReportDetailScreen extends ConsumerStatefulWidget {
   final Report report;
+
   const ReportDetailScreen({super.key, required this.report});
 
   @override
@@ -19,6 +21,7 @@ class ReportDetailScreen extends ConsumerStatefulWidget {
 
 class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
   late Report _currentReport;
+  int _currentImageIndex = 0; // Çoklu görsel takibi için
 
   @override
   void initState() {
@@ -54,6 +57,7 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
     try {
       await ref.read(reportRepositoryProvider).deleteReport(_currentReport.id);
       ref.invalidate(reportListProvider);
+
       if (context.mounted) {
         Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(
@@ -114,6 +118,7 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
       }
       return null;
     }
+
     if (!context.mounted) return null;
 
     return showDialog<User>(
@@ -150,113 +155,309 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
     );
   }
 
-  //  SÜREÇ TAKİBİ
+  Widget _buildImmersiveHeader(ColorScheme colorScheme, bool isDarkMode) {
+    final hasImage = _currentReport.imagePaths.isNotEmpty;
+    // Eğer görsel yoksa yazılar siyah kalsın (açık modda)
+    final textColor = (hasImage || isDarkMode) ? Colors.white : colorScheme.onSurface;
+    final subtitleColor = (hasImage || isDarkMode) ? Colors.white70 : colorScheme.onSurfaceVariant;
 
-  Widget _buildProcessStepper(ColorScheme colorScheme, ReportStatus status) {
-    int currentStep = 0;
-    bool isError = false;
-
-    if (status == ReportStatus.inProgress) {
-      currentStep = 1;
-    } else if (status == ReportStatus.resolved) {
-      currentStep = 2;
-    } else if (status == ReportStatus.rejected ||
-        status == ReportStatus.invalid) {
-      currentStep = 2;
-      isError = true;
-    }
-
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
-      decoration: BoxDecoration(
-        color: colorScheme.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: colorScheme.outline.withValues(alpha: 0.15)),
-      ),
-      child: Row(
-        children: [
-          _buildStep(colorScheme, 'Bildirildi', true, false, true),
-          _buildLine(colorScheme, currentStep >= 1),
-          _buildStep(colorScheme, 'İşlemde', currentStep >= 1, false, false),
-          _buildLine(colorScheme, currentStep >= 2),
-          _buildStep(
-            colorScheme,
-            isError ? getStatusLabel(status) : 'Çözüldü',
-            currentStep >= 2,
-            isError,
-            false,
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildStep(
-    ColorScheme colorScheme,
-    String label,
-    bool isActive,
-    bool isError,
-    bool isFirst,
-  ) {
-    Color circleColor = colorScheme.surfaceContainerHighest;
-    Color iconColor = colorScheme.outline;
-    IconData icon = Icons.circle;
-    double iconSize = 12;
-
-    if (isActive) {
-      if (isError) {
-        circleColor = colorScheme.error;
-        iconColor = colorScheme.onError;
-        icon = Icons.close;
-        iconSize = 16;
-      } else {
-        circleColor = const Color(
-          0xFF1E293B,
-        ); // Koyu Lacivert (Tasarımdaki gibi)
-        iconColor = Colors.white;
-        icon = Icons.check;
-        iconSize = 16;
-      }
-    }
-
-    return Column(
+    return Stack(
       children: [
+        // Arka plan görseli (Çoklu görsel desteği ile)
         Container(
-          width: 28,
-          height: 28,
-          decoration: BoxDecoration(color: circleColor, shape: BoxShape.circle),
-          child: Icon(icon, color: iconColor, size: iconSize),
+          height: 380,
+          width: double.infinity,
+          color: colorScheme.surfaceContainerHighest,
+          child: hasImage
+              ? PageView.builder(
+                  itemCount: _currentReport.imagePaths.length,
+                  onPageChanged: (index) {
+                    setState(() {
+                      _currentImageIndex = index;
+                    });
+                  },
+                  itemBuilder: (context, index) {
+                    final path = _currentReport.imagePaths[index];
+                    return path.startsWith('http') || kIsWeb
+                        ? Image.network(path, fit: BoxFit.cover)
+                        : Image.file(File(path), fit: BoxFit.cover);
+                  },
+                )
+              : Icon(Icons.broken_image, size: 64, color: colorScheme.outline),
         ),
-        const SizedBox(height: 8),
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: 12,
-            fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
-            color: isActive
-                ? (isError ? colorScheme.error : colorScheme.onSurface)
-                : colorScheme.outline,
+
+        // Karartma katmanı (Sadece görsel varsa)
+        if (hasImage)
+          Container(
+            height: 380,
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  Colors.black.withValues(alpha: 0.1),
+                  Colors.black.withValues(alpha: 0.5),
+                  Colors.black.withValues(alpha: 0.9),
+                ],
+              ),
+            ),
+          ),
+
+        // Çoklu görsel göstergesi (Badge)
+        if (hasImage && _currentReport.imagePaths.length > 1)
+          Positioned(
+            top: 100, // AppBar'ın altına denk gelmesi için
+            right: 16,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              decoration: BoxDecoration(
+                color: Colors.black.withValues(alpha: 0.6),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Text(
+                '${_currentImageIndex + 1}/${_currentReport.imagePaths.length}',
+                style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
+              ),
+            ),
+          ),
+
+        // İçerik katmanı
+        Positioned(
+          bottom: 24,
+          left: 20,
+          right: 20,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Kategori ve durum etiketi
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: hasImage ? Colors.white.withValues(alpha: 0.2) : colorScheme.surfaceContainer,
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(
+                      getCategoryLabel(_currentReport.category),
+                      style: TextStyle(
+                        color: textColor,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: colorForStatus(_currentReport.status, isDarkMode: isDarkMode),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(
+                      getStatusLabel(_currentReport.status),
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              // Başlık (Taşma korumalı)
+              Text(
+                _currentReport.title,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: textColor,
+                  fontSize: 26,
+                  fontWeight: FontWeight.w800,
+                  height: 1.2,
+                ),
+              ),
+              const SizedBox(height: 8),
+              // Tarih
+              Row(
+                children: [
+                  Icon(Icons.access_time, size: 14, color: subtitleColor),
+                  const SizedBox(width: 6),
+                  Text(
+                    getFormattedDate(_currentReport.createdAt),
+                    style: TextStyle(color: subtitleColor, fontSize: 13),
+                  ),
+                ],
+              ),
+            ],
           ),
         ),
       ],
     );
   }
 
-  Widget _buildLine(ColorScheme colorScheme, bool isActive) {
-    return Expanded(
-      child: Container(
-        margin: const EdgeInsets.only(
-          bottom: 24,
-          left: 8,
-          right: 8,
-        ), // Metin boşluğunu telafi etmek için margin
-        height: 3,
-        decoration: BoxDecoration(
-          color: isActive
-              ? const Color(0xFF1E293B)
-              : colorScheme.surfaceContainerHighest,
-          borderRadius: BorderRadius.circular(2),
+  // Dikey zaman çizelgesi süreç geçmişi
+  Widget _buildVerticalTimeline(ColorScheme colorScheme, bool isDarkMode) {
+    bool isInProgress = _currentReport.status == ReportStatus.inProgress ||
+        _currentReport.status == ReportStatus.resolved ||
+        _currentReport.status == ReportStatus.rejected ||
+        _currentReport.status == ReportStatus.invalid;
+    bool isFinished = _currentReport.status == ReportStatus.resolved ||
+        _currentReport.status == ReportStatus.rejected ||
+        _currentReport.status == ReportStatus.invalid;
+
+    return _buildModularCard(
+      colorScheme: colorScheme,
+      isDarkMode: isDarkMode,
+      overline: 'SÜREÇ GEÇMİŞİ',
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildTimelineStep(
+            colorScheme: colorScheme,
+            title: 'Bildirildi',
+            subtitle: '${_currentReport.senderName ?? "Bilinmiyor"} - ${getFormattedDate(_currentReport.createdAt)}',
+            isActive: true,
+            isLast: _currentReport.assignedStaffId == null && !isInProgress,
+            iconColor: colorScheme.primary, // Sabit renk yerine temaya uygun renk
+          ),
+          if (_currentReport.assignedStaffId != null)
+            _buildTimelineStep(
+              colorScheme: colorScheme,
+              title: '${_currentReport.assignedStaffName} personeline atandı',
+              subtitle: 'Sistem tarafından yönlendirildi',
+              isActive: true,
+              isLast: !isInProgress,
+              iconColor: colorScheme.primary,
+            ),
+          if (isInProgress)
+            _buildTimelineStep(
+              colorScheme: colorScheme,
+              title: 'İnceleniyor / İşlemde',
+              subtitle: isFinished ? 'Süreç tamamlandı' : 'Şu an devam ediyor',
+              isActive: true,
+              isLast: !isFinished,
+              iconColor: isFinished ? colorScheme.primary : colorForStatus(ReportStatus.inProgress, isDarkMode: isDarkMode),
+            ),
+          if (isFinished)
+            _buildTimelineStep(
+              colorScheme: colorScheme,
+              title: getStatusLabel(_currentReport.status),
+              subtitle: 'Talep sonuçlandırıldı',
+              isActive: true,
+              isLast: true,
+              iconColor: colorForStatus(_currentReport.status, isDarkMode: isDarkMode),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTimelineStep({
+    required ColorScheme colorScheme,
+    required String title,
+    required String subtitle,
+    required bool isActive,
+    required bool isLast,
+    required Color iconColor,
+  }) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Column(
+          children: [
+            Container(
+              margin: const EdgeInsets.only(top: 4),
+              width: 12,
+              height: 12,
+              decoration: BoxDecoration(
+                color: iconColor,
+                shape: BoxShape.circle,
+              ),
+            ),
+            if (!isLast)
+              Container(
+                width: 2,
+                height: 40,
+                color: colorScheme.surfaceContainerHighest,
+                margin: const EdgeInsets.symmetric(vertical: 4),
+              ),
+          ],
         ),
+        const SizedBox(width: 16),
+        Expanded(
+          child: Padding(
+            padding: EdgeInsets.only(bottom: isLast ? 0 : 20.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 15,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  subtitle,
+                  style: TextStyle(
+                    color: colorScheme.onSurfaceVariant,
+                    fontSize: 13,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildModularCard({
+    required ColorScheme colorScheme,
+    required bool isDarkMode,
+    required String overline,
+    required Widget child,
+    Color? backgroundColor,
+    Color? borderColor,
+  }) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      margin: const EdgeInsets.only(bottom: 16),
+      decoration: BoxDecoration(
+        color: backgroundColor ?? (isDarkMode ? colorScheme.surfaceContainer : Colors.white),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: borderColor ?? (isDarkMode ? colorScheme.outline.withValues(alpha: 0.15) : Colors.black.withValues(alpha: 0.05)),
+        ),
+        boxShadow: isDarkMode || backgroundColor != null
+            ? []
+            : [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.02),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            overline,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.bold,
+              color: colorScheme.outline,
+              letterSpacing: 1.2,
+            ),
+          ),
+          const SizedBox(height: 12),
+          child,
+        ],
       ),
     );
   }
@@ -266,10 +467,14 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
     final currentUser = ref.watch(currentUserProvider);
     if (currentUser == null) return const SizedBox.shrink();
 
-    final canAssignStaff = currentUser.permissions.contains('assign_staff');
-    final canUpdateStatusPermission = currentUser.permissions.contains(
-      'update_report_status',
-    );
+    final canAssignStaff = currentUser.permissions.contains('assign_staff') ||
+        currentUser.role == UserRole.admin ||
+        currentUser.role == UserRole.managing;
+
+    final canUpdateStatusPermission = currentUser.permissions.contains('update_report_status') ||
+        currentUser.role == UserRole.admin ||
+        currentUser.role == UserRole.managing ||
+        currentUser.role == UserRole.staff;
 
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
@@ -281,328 +486,242 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
     final canAssign = canAssignStaff;
 
     return Scaffold(
-      backgroundColor: isDarkMode ? colorScheme.surface : Colors.grey.shade50,
+      backgroundColor: isDarkMode ? colorScheme.surface : AppColors.surfaceWarmLight,
+      extendBodyBehindAppBar: true,
       appBar: AppBar(
-        title: const Text(
-          'Talep Detayı',
-          style: TextStyle(fontWeight: FontWeight.w600, fontSize: 18),
-        ),
-        centerTitle: true,
+        backgroundColor: Colors.transparent,
         elevation: 0,
-        backgroundColor: isDarkMode ? colorScheme.surface : Colors.grey.shade50,
-        foregroundColor: colorScheme.onSurface,
+        leading: Padding(
+          padding: const EdgeInsets.only(left: 12.0, top: 8.0, bottom: 8.0),
+          child: CircleAvatar(
+            backgroundColor: colorScheme.surface,
+            child: IconButton(
+              icon: Icon(Icons.arrow_back, color: colorScheme.onSurface, size: 20),
+              onPressed: () => Navigator.pop(context),
+            ),
+          ),
+        ),
         actions: [
           if (canEdit)
-            IconButton(
-              onPressed: () async {
-                final updated = await Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) =>
-                        CreateReportScreen(existingReport: _currentReport),
-                  ),
-                );
-                if (updated != null && updated is Report) {
-                  setState(() {
-                    _currentReport = updated;
-                  });
-                }
-              },
-              icon: const Icon(Icons.edit_outlined),
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 4.0),
+              child: CircleAvatar(
+                backgroundColor: colorScheme.surface,
+                child: IconButton(
+                  onPressed: () async {
+                    final updated = await Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => CreateReportScreen(existingReport: _currentReport),
+                      ),
+                    );
+                    if (updated != null && updated is Report) {
+                      setState(() {
+                        _currentReport = updated;
+                      });
+                    }
+                  },
+                  icon: Icon(Icons.edit_outlined, color: colorScheme.onSurface, size: 20),
+                ),
+              ),
             ),
           if (canDelete)
-            IconButton(
-              onPressed: () => _confirmAndDelete(context, ref),
-              icon: Icon(Icons.delete_outline, color: colorScheme.error),
+            Padding(
+              padding: const EdgeInsets.only(top: 8.0, bottom: 8.0, right: 12.0, left: 4.0),
+              child: CircleAvatar(
+                backgroundColor: colorScheme.surface,
+                child: IconButton(
+                  onPressed: () => _confirmAndDelete(context, ref),
+                  icon: Icon(Icons.delete_outline, color: colorScheme.error, size: 20),
+                ),
+              ),
             ),
         ],
       ),
+      bottomNavigationBar: canChangeStatus
+          ? SafeArea(
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                decoration: BoxDecoration(
+                  color: colorScheme.surface,
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.05),
+                      blurRadius: 10,
+                      offset: const Offset(0, -5),
+                    ),
+                  ],
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Mevcut Durum',
+                          style: TextStyle(fontSize: 12, color: colorScheme.outline),
+                        ),
+                        Text(
+                          getStatusLabel(_currentReport.status),
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: colorForStatus(_currentReport.status, isDarkMode: isDarkMode),
+                            fontSize: 16,
+                          ),
+                        ),
+                      ],
+                    ),
+                    PopupMenuButton<ReportStatus>(
+                      onSelected: (ReportStatus newStatus) async {
+                        String? note;
+                        if (newStatus == ReportStatus.resolved ||
+                            newStatus == ReportStatus.rejected ||
+                            newStatus == ReportStatus.invalid) {
+                          note = await _showNoteDialog(newStatus);
+                          if (note == null) return;
+                        }
+                        await ref
+                            .read(reportRepositoryProvider)
+                            .updateStatusWithNote(
+                              _currentReport.id,
+                              newStatus,
+                              note,
+                            );
+                        setState(() {
+                          _currentReport = _currentReport.copyWith(
+                            status: newStatus,
+                            resolutionNote: note,
+                          );
+                        });
+                        ref.invalidate(reportListProvider);
+                      },
+                      itemBuilder: (context) => ReportStatus.values.map((status) {
+                        return PopupMenuItem(
+                          value: status,
+                          child: Text(getStatusLabel(status)),
+                        );
+                      }).toList(),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                        decoration: BoxDecoration(
+                          color: colorScheme.primary, // Sabit lacivert yerine primary color
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              'Durumu Güncelle',
+                              style: TextStyle(color: colorScheme.onPrimary, fontWeight: FontWeight.bold),
+                            ),
+                            const SizedBox(width: 8),
+                            Icon(Icons.keyboard_arrow_down, color: colorScheme.onPrimary, size: 20),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            )
+          : null,
       body: SingleChildScrollView(
+        padding: const EdgeInsets.only(bottom: 40),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // FOTOĞRAF ALANI
-            if (_currentReport.imagePaths.isNotEmpty)
-              _currentReport.imagePaths.length == 1
-                  ? SizedBox(
-                      height: 280,
-                      width: double.infinity,
-                      child:
-                          _currentReport.imagePaths.first.startsWith('http') ||
-                              kIsWeb
-                          ? Image.network(
-                              _currentReport.imagePaths.first,
-                              fit: BoxFit.cover,
-                              errorBuilder: (context, error, stackTrace) =>
-                                  _buildImageError(colorScheme),
-                            )
-                          : Image.file(
-                              File(_currentReport.imagePaths.first),
-                              fit: BoxFit.cover,
-                            ),
-                    )
-                  : SizedBox(
-                      height: 240,
-                      child: ListView.builder(
-                        scrollDirection: Axis.horizontal,
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 8,
-                        ),
-                        itemCount: _currentReport.imagePaths.length,
-                        itemBuilder: (context, index) {
-                          final image = _currentReport.imagePaths[index];
-                          return Padding(
-                            padding: const EdgeInsets.only(right: 12.0),
-                            child: ClipRRect(
-                              borderRadius: BorderRadius.circular(16),
-                              child: SizedBox(
-                                width: 300,
-                                child: image.startsWith('http') || kIsWeb
-                                    ? Image.network(image, fit: BoxFit.cover)
-                                    : Image.file(
-                                        File(image),
-                                        fit: BoxFit.cover,
-                                      ),
-                              ),
-                            ),
-                          );
-                        },
-                      ),
-                    ),
-
-            //  İÇERİK ALANI
+            _buildImmersiveHeader(colorScheme, isDarkMode),
             Padding(
               padding: const EdgeInsets.all(20.0),
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Kategori ve Durum Değiştirme Butonu
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Row(
-                        children: [
-                          Icon(
-                            Icons.label_outline,
-                            size: 18,
-                            color: colorScheme.primary,
-                          ),
-                          const SizedBox(width: 6),
-                          Text(
-                            getCategoryLabel(_currentReport.category),
-                            style: TextStyle(
-                              color: colorScheme.primary,
-                              fontWeight: FontWeight.w600,
-                              fontSize: 14,
-                            ),
-                          ),
-                        ],
-                      ),
-                      // Yöneticiler için durumu güncelleme butonu
-                      if (canChangeStatus)
-                        PopupMenuButton<ReportStatus>(
-                          onSelected: (ReportStatus newStatus) async {
-                            String? note;
-                            if (newStatus == ReportStatus.resolved ||
-                                newStatus == ReportStatus.rejected ||
-                                newStatus == ReportStatus.invalid) {
-                              note = await _showNoteDialog(newStatus);
-                              if (note == null) return;
-                            }
-                            await ref
-                                .read(reportRepositoryProvider)
-                                .updateStatusWithNote(
-                                  _currentReport.id,
-                                  newStatus,
-                                  note,
-                                );
-                            setState(() {
-                              _currentReport = _currentReport.copyWith(
-                                status: newStatus,
-                                resolutionNote: note,
-                              );
-                            });
-                            ref.invalidate(reportListProvider);
-                          },
-                          itemBuilder: (context) =>
-                              ReportStatus.values.map((status) {
-                                return PopupMenuItem(
-                                  value: status,
-                                  child: Text(getStatusLabel(status)),
-                                );
-                              }).toList(),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 8,
-                            ),
-                            decoration: BoxDecoration(
-                              color: colorScheme.primary.withValues(alpha: 0.1),
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Text(
-                                  'Durumu Güncelle',
-                                  style: TextStyle(
-                                    color: colorScheme.primary,
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 12,
-                                  ),
-                                ),
-                                const SizedBox(width: 4),
-                                Icon(
-                                  Icons.arrow_drop_down,
-                                  size: 16,
-                                  color: colorScheme.primary,
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-
-                  // Başlık ve Tarih
-                  Text(
-                    _currentReport.title,
-                    style: const TextStyle(
-                      fontSize: 26,
-                      fontWeight: FontWeight.w800,
-                      height: 1.2,
+                  _buildModularCard(
+                    colorScheme: colorScheme,
+                    isDarkMode: isDarkMode,
+                    overline: 'AÇIKLAMA',
+                    child: Text(
+                      _currentReport.description,
+                      style: TextStyle(fontSize: 16, height: 1.6, color: colorScheme.onSurface),
                     ),
                   ),
-                  const SizedBox(height: 8),
-                  Row(
-                    children: [
-                      Icon(
-                        Icons.access_time,
-                        size: 14,
-                        color: colorScheme.outline,
-                      ),
-                      const SizedBox(width: 6),
-                      Text(
-                        getFormattedDate(_currentReport.createdAt),
-                        style: TextStyle(
-                          color: colorScheme.outline,
-                          fontSize: 13,
+                  _buildModularCard(
+                    colorScheme: colorScheme,
+                    isDarkMode: isDarkMode,
+                    overline: 'AÇIK ADRES',
+                    child: Row(
+                      children: [
+                        CircleAvatar(
+                          backgroundColor: colorScheme.primary.withValues(alpha: 0.1),
+                          child: Icon(Icons.location_on_outlined, color: colorScheme.primary, size: 20),
                         ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 24),
-
-                  // SÜREÇ TAKİBİ BİLEŞENİ
-                  _buildProcessStepper(colorScheme, _currentReport.status),
-                  const SizedBox(height: 24),
-
-                  // Açıklama Metni
-                  Text(
-                    _currentReport.description,
-                    style: TextStyle(
-                      fontSize: 16,
-                      height: 1.6,
-                      color: colorScheme.onSurfaceVariant,
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            _currentReport.fullAddress ?? 'Adres bilgisi bulunmuyor',
+                            style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+                          ),
+                        ),
+                        Icon(Icons.chevron_right, color: colorScheme.outline),
+                      ],
                     ),
                   ),
-                  const SizedBox(height: 32),
-
-                  // İLETİŞİM VE ADRES KARTLARI
-                  if (canChangeStatus || canAssign) ...[
-                    _buildInfoCard(
-                      colorScheme,
-                      Icons.person_outline,
-                      'Gönderen Bilgileri',
-                      _currentReport.senderName ?? "Bilinmiyor",
-                      subtext:
-                          _currentReport.contactPhone != null &&
-                              _currentReport.contactPhone!.isNotEmpty
-                          ? 'İletişim: ${_currentReport.contactPhone}'
-                          : null,
-                    ),
-                    const SizedBox(height: 12),
-                  ],
-
-                  _buildInfoCard(
-                    colorScheme,
-                    Icons.location_on_outlined,
-                    'Açık Adres',
-                    _currentReport.fullAddress ?? 'Adres bilgisi bulunmuyor',
-                  ),
-                  const SizedBox(height: 24),
-
-                  // PERSONEL ATAMA VE ÇÖZÜM NOTU ALANI
-                  if (_currentReport.assignedStaffId != null || canAssign) ...[
-                    Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: colorScheme.surface,
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(
-                          color: colorScheme.outline.withValues(alpha: 0.15),
-                        ),
-                      ),
+                  _buildVerticalTimeline(colorScheme, isDarkMode),
+                  if (canChangeStatus || canAssign)
+                    _buildModularCard(
+                      colorScheme: colorScheme,
+                      isDarkMode: isDarkMode,
+                      overline: 'GÖNDEREN BİLGİLERİ',
                       child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
+                          CircleAvatar(
+                            backgroundColor: colorScheme.surfaceContainerHighest,
+                            child: Icon(Icons.person_outline, color: colorScheme.onSurfaceVariant, size: 20),
+                          ),
+                          const SizedBox(width: 12),
                           Expanded(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  'Sorumlu Personel',
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.bold,
-                                    color: colorScheme.primary,
-                                  ),
+                                  _currentReport.senderName ?? "Bilinmiyor",
+                                  style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
                                 ),
-                                const SizedBox(height: 6),
-                                Text(
-                                  _currentReport.assignedStaffName ??
-                                      'Henüz personel atanmadı',
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    fontStyle:
-                                        _currentReport.assignedStaffId != null
-                                        ? FontStyle.normal
-                                        : FontStyle.italic,
-                                    fontWeight:
-                                        _currentReport.assignedStaffId != null
-                                        ? FontWeight.bold
-                                        : FontWeight.w500,
+                                if (_currentReport.contactPhone != null && _currentReport.contactPhone!.isNotEmpty)
+                                  Text(
+                                    'İletişim: ${_currentReport.contactPhone}',
+                                    style: TextStyle(color: colorScheme.onSurfaceVariant, fontSize: 13),
                                   ),
-                                ),
                               ],
                             ),
                           ),
+                        ],
+                      ),
+                    ),
+                  if (_currentReport.assignedStaffId != null || canAssign)
+                    _buildModularCard(
+                      colorScheme: colorScheme,
+                      isDarkMode: isDarkMode,
+                      overline: 'SORUMLU PERSONEL',
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            _currentReport.assignedStaffName ?? 'Henüz atanmadı',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontStyle: _currentReport.assignedStaffId != null ? FontStyle.normal : FontStyle.italic,
+                              fontWeight: _currentReport.assignedStaffId != null ? FontWeight.bold : FontWeight.normal,
+                            ),
+                          ),
                           if (canAssignStaff)
-                            FilledButton.icon(
-                              icon: Icon(
-                                _currentReport.assignedStaffId != null
-                                    ? Icons.edit
-                                    : Icons.person_add,
-                                size: 18,
-                              ),
-                              label: Text(
-                                _currentReport.assignedStaffId != null
-                                    ? 'Değiştir'
-                                    : 'Ata',
-                              ),
-                              style: FilledButton.styleFrom(
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                              ),
+                            OutlinedButton(
                               onPressed: () async {
                                 final selectedStaff = await _showAssignDialog();
                                 if (selectedStaff != null) {
                                   try {
-                                    if (_currentReport.assignedStaffId ==
-                                        null) {
+                                    if (_currentReport.assignedStaffId == null) {
                                       await ref
                                           .read(reportRepositoryProvider)
                                           .assignReport(
@@ -617,170 +736,71 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
                                             selectedStaff.id,
                                           );
                                     }
+
                                     setState(() {
                                       _currentReport = _currentReport.copyWith(
                                         assignedStaffId: selectedStaff.id,
                                         assignedStaffName: selectedStaff.name,
                                       );
                                     });
+
                                     ref.invalidate(reportListProvider);
+
                                     if (context.mounted) {
-                                      ScaffoldMessenger.of(
-                                        context,
-                                      ).showSnackBar(
-                                        const SnackBar(
-                                          content: Text(
-                                            'Personel ataması başarılı',
-                                          ),
-                                        ),
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        const SnackBar(content: Text('Atama başarılı')),
                                       );
                                     }
-                                  } catch (e) {
-                                    if (context.mounted) {
-                                      ScaffoldMessenger.of(
-                                        context,
-                                      ).showSnackBar(
-                                        SnackBar(
-                                          content: Text(
-                                            'Atama sırasında hata: $e',
-                                          ),
-                                          backgroundColor: Colors.red,
-                                        ),
-                                      );
-                                    }
-                                  }
+                                  } catch (e) {}
                                 }
                               },
+                              style: OutlinedButton.styleFrom(
+                                side: BorderSide(color: colorScheme.outline.withValues(alpha: 0.5)),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                              ),
+                              child: Text(
+                                _currentReport.assignedStaffId != null ? 'Değiştir' : 'Ata',
+                                style: TextStyle(color: colorScheme.onSurface),
+                              ),
                             ),
                         ],
                       ),
                     ),
-                  ],
-
-                  if (_currentReport.resolutionNote != null &&
-                      _currentReport.resolutionNote!.isNotEmpty) ...[
-                    const SizedBox(height: 16),
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: colorForStatus(
-                          _currentReport.status,
-                        ).withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(
-                          color: colorForStatus(
-                            _currentReport.status,
-                          ).withValues(alpha: 0.2),
-                        ),
-                      ),
-                      child: Column(
+                  if (_currentReport.resolutionNote != null && _currentReport.resolutionNote!.isNotEmpty)
+                    _buildModularCard(
+                      colorScheme: colorScheme,
+                      isDarkMode: isDarkMode,
+                      overline: 'ÇÖZÜM NOTU',
+                      backgroundColor: getStatusBgColor(_currentReport.status, isDarkMode: isDarkMode),
+                      borderColor: colorForStatus(_currentReport.status, isDarkMode: isDarkMode).withValues(alpha: 0.2),
+                      child: Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Row(
-                            children: [
-                              Icon(
-                                Icons.info_outline,
-                                size: 18,
-                                color: colorForStatus(_currentReport.status),
-                              ),
-                              const SizedBox(width: 8),
-                              Text(
-                                'Çözüm Notu',
-                                style: TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  color: colorForStatus(_currentReport.status),
-                                ),
-                              ),
-                            ],
+                          Icon(
+                            Icons.info_outline,
+                            size: 20,
+                            color: colorForStatus(_currentReport.status, isDarkMode: isDarkMode),
                           ),
-                          const SizedBox(height: 8),
-                          Text(
-                            _currentReport.resolutionNote!,
-                            style: const TextStyle(
-                              fontStyle: FontStyle.italic,
-                              height: 1.5,
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              _currentReport.resolutionNote!,
+                              style: TextStyle(
+                                fontStyle: FontStyle.italic,
+                                height: 1.5,
+                                color: colorForStatus(_currentReport.status, isDarkMode: isDarkMode), // Yeni kontrast rengi
+                              ),
                             ),
                           ),
                         ],
                       ),
                     ),
-                  ],
-                  const SizedBox(height: 40),
                 ],
               ),
             ),
           ],
         ),
       ),
-    );
-  }
-
-  Widget _buildInfoCard(
-    ColorScheme colorScheme,
-    IconData icon,
-    String title,
-    String mainText, {
-    String? subtext,
-  }) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: colorScheme.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: colorScheme.outline.withValues(alpha: 0.15)),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(icon, size: 20, color: colorScheme.primary),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
-                    color: colorScheme.primary,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  mainText,
-                  style: TextStyle(
-                    fontSize: 15,
-                    color: colorScheme.onSurface,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-                if (subtext != null) ...[
-                  const SizedBox(height: 4),
-                  SelectableText(
-                    subtext,
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                ],
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildImageError(ColorScheme colorScheme) {
-    return Container(
-      height: 280,
-      width: double.infinity,
-      color: colorScheme.surfaceContainerHighest,
-      child: Icon(Icons.broken_image, color: colorScheme.outline, size: 48),
     );
   }
 }

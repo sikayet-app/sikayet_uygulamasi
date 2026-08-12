@@ -1,4 +1,4 @@
 class ApiConstants {
   static const String baseUrl =
-      'https://benjamin-psychology-missile-specifics.trycloudflare.com/api';
+      'https://rent-squad-beneath-proprietary.trycloudflare.com/api';
 }

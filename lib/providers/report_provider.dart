@@ -58,3 +58,18 @@ final filteredReportListProvider = Provider<AsyncValue<List<Report>>>((ref) {
     return filtered;
   });
 });
+
+final mapSearchQueryProvider = StateProvider.autoDispose<String>((ref) => '');
+
+final mapSearchResultsProvider = Provider.autoDispose<List<Report>>((ref) {
+  final query = ref.watch(mapSearchQueryProvider).trim().toLowerCase();
+  final reports = ref.watch(filteredReportListProvider).valueOrNull ?? [];
+
+  if (query.isEmpty) return [];
+
+  // Hem başlıkta hem de adreste arama yapar, ilk 5 sonucu döndürür
+  return reports.where((r) {
+    return r.title.toLowerCase().contains(query) || 
+           (r.fullAddress?.toLowerCase().contains(query) ?? false);
+  }).take(5).toList();
+});

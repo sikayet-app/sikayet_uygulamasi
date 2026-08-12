@@ -125,14 +125,17 @@ class ApiReportRepository implements ReportRepository {
 
   @override
   Future<void> assignReport(String reportId, String staffId) async {
-    await _dio.patch('/reports/$reportId/assign', data: {'staff_id': staffId});
+    await _dio.patch(
+      '/reports/$reportId/assign',
+      data: {'staff_id': int.tryParse(staffId)},
+    );
   }
 
   @override
   Future<void> updateAssignedStaff(String reportId, String staffId) async {
     await _dio.patch(
       '/reports/$reportId/assign/update',
-      data: {'staff_id': staffId},
+      data: {'staff_id': int.tryParse(staffId)},
     );
   }
 }

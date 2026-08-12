@@ -2,33 +2,48 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
-import 'package:sikayet_uygulamasi/widgets/create_report_fab.dart';
 import '../data/models/report.dart';
 import '../core/location_service.dart';
 import '../providers/report_provider.dart';
 import '../core/report_ui_helpers.dart';
 import 'dart:io';
 import 'report_detail_screen.dart';
-import 'package:flutter_map_marker_cluster/flutter_map_marker_cluster.dart'; // EKSİK NOKTALI VİRGÜL EKLENDİ
+import 'package:flutter_map_marker_cluster/flutter_map_marker_cluster.dart';
+import 'package:sikayet_uygulamasi/widgets/create_report_fab.dart';
+import 'package:flutter/foundation.dart';
+import 'report_list_screen.dart'; // FilterDrawerContent için gerekli
+import 'dart:async';
 
-// consumer: db ye yeni şikayet gelirse harita bunu anında gösterecek
-// stateful: hafızası olan,zamanla değişebilen. konumum değiştikçe mavi nokta hareket edecek.
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
+
   @override
   ConsumerState<HomeScreen> createState() => _HomeScreenState();
 }
 
 class _HomeScreenState extends ConsumerState<HomeScreen> {
   final MapController _mapController = MapController();
+  final TextEditingController _searchController = TextEditingController();
+  Timer? _debounce;
   LatLng? _myLocation;
-  bool _isMapReady = false; // haritanın ekrana çizilip çizilmediği anlaşılacak
-  static const LatLng _defaultCenter = LatLng(
-    37.0662,
-    37.3833,
-  ); // kullanıcının gps i kapalıysa diye varsayılan merkez noktası.
+  bool _isMapReady = false;
 
-  // bir kereliğine çalışır
+  static const LatLng _defaultCenter = LatLng(37.0662, 37.3833);
+
+  void _onSearchChanged(String value) {
+    if (_debounce?.isActive ?? false) _debounce!.cancel();
+    _debounce = Timer(const Duration(milliseconds: 300), () {
+      ref.read(mapSearchQueryProvider.notifier).state = value;
+    });
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    _debounce?.cancel();
+    super.dispose();
+  }
+
   @override
   void initState() {
     super.initState();
@@ -43,29 +58,36 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           _myLocation = LatLng(position.latitude, position.longitude);
         });
         if (_isMapReady) {
-          _mapController.move(_myLocation!, 15); // 15: mahalle,sokak seviyesi
+          _mapController.move(_myLocation!, 15);
         }
       }
-    }
-    // gps izni verilmezse veya telefon bozuksa hatayı gösterme, default konumu göster.
-    catch (_) {}
+    } catch (_) {}
   }
 
   @override
   Widget build(BuildContext context) {
     final reportAsync = ref.watch(filteredReportListProvider);
+    final currentStatus = ref.watch(filterStatusProvider);
+    final searchResults = ref.watch(mapSearchResultsProvider);
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final isDarkMode = theme.brightness == Brightness.dark;
+
     return Scaffold(
-      floatingActionButton: const CreateReportFab(),
-      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
+      // HARİTA EKRANINA DA FİLTRE ÇEKMECESİ EKLENDİ
+      endDrawer: Drawer(
+        backgroundColor: colorScheme.surface,
+        child: const SafeArea(child: FilterDrawerContent()),
+      ),
       body: reportAsync.when(
         data: (reports) => Stack(
           children: [
+            // 1. HARİTA KATMANI
             FlutterMap(
               mapController: _mapController,
               options: MapOptions(
                 initialCenter: _defaultCenter,
                 initialZoom: 13,
-                //harita tamamen çizilip hazır olduğunda tetiklenir
                 onMapReady: () {
                   _isMapReady = true;
                   if (_myLocation != null) {
@@ -77,9 +99,40 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 ),
               ),
               children: [
+                // Gece modunda harita renklerini tersine çeviren harika bir hile
                 TileLayer(
                   urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
                   userAgentPackageName: 'com.example.sikayet_uygulamasi',
+                  tileBuilder: (context, tileWidget, tile) {
+                    if (isDarkMode) {
+                      return ColorFiltered(
+                        colorFilter: const ColorFilter.matrix([
+                          -1,
+                          0,
+                          0,
+                          0,
+                          255,
+                          0,
+                          -1,
+                          0,
+                          0,
+                          255,
+                          0,
+                          0,
+                          -1,
+                          0,
+                          255,
+                          0,
+                          0,
+                          0,
+                          1,
+                          0,
+                        ]),
+                        child: tileWidget,
+                      );
+                    }
+                    return tileWidget;
+                  },
                 ),
                 MarkerClusterLayerWidget(
                   options: MarkerClusterLayerOptions(
@@ -89,32 +142,41 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     padding: const EdgeInsets.all(50),
                     maxZoom: 15,
                     markers: reports.map((report) {
+                      final statusColor = colorForStatus(report.status);
                       return Marker(
                         point: LatLng(report.latitude, report.longitude),
-                        width: 40,
-                        height: 40,
+                        width: 44,
+                        height: 44,
                         child: GestureDetector(
-                          onTap: () => _showReportPreview(context, report),
+                          onTap: () {
+                            FocusScope.of(context).unfocus();
+                            _showReportPreview(
+                              context,
+                              report,
+                              colorScheme,
+                              isDarkMode,
+                            );
+                          },
                           child: Container(
                             decoration: BoxDecoration(
-                              color: colorForStatus(report.status),
+                              color: statusColor,
                               shape: BoxShape.circle,
                               border: Border.all(
                                 color: Colors.white,
-                                width: 2.0,
+                                width: 2.5,
                               ),
-                              boxShadow: [
+                              boxShadow: const [
                                 BoxShadow(
                                   color: Colors.black26,
-                                  blurRadius: 4,
-                                  offset: Offset(0, 2),
+                                  blurRadius: 6,
+                                  offset: Offset(0, 3),
                                 ),
                               ],
                             ),
                             child: Icon(
-                              Icons.report_problem,
+                              getCategoryIcon(report.category),
                               color: Colors.white,
-                              size: 20,
+                              size: 22,
                             ),
                           ),
                         ),
@@ -123,15 +185,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     builder: (context, markers) {
                       return Container(
                         decoration: BoxDecoration(
-                          color: Theme.of(context).primaryColor,
+                          color: colorScheme.primary, // Temaya uygun renk
                           shape: BoxShape.circle,
-                          border: Border.all(color: Colors.white, width: 2.0),
+                          border: Border.all(color: Colors.white, width: 2.5),
                           boxShadow: const [
-                            // EKSİK KÖŞELİ PARANTEZ EKLENDİ
                             BoxShadow(
                               color: Colors.black26,
-                              blurRadius: 4,
-                              offset: Offset(0, 2),
+                              blurRadius: 6,
+                              offset: Offset(0, 3),
                             ),
                           ],
                         ),
@@ -141,7 +202,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                             style: const TextStyle(
                               color: Colors.white,
                               fontWeight: FontWeight.bold,
-                              fontSize: 14,
+                              fontSize: 16,
                             ),
                           ),
                         ),
@@ -154,18 +215,20 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     markers: [
                       Marker(
                         point: _myLocation!,
-                        width: 20,
-                        height: 20,
+                        width: 24,
+                        height: 24,
                         child: Container(
                           decoration: BoxDecoration(
-                            color: Colors.blue,
+                            color: const Color(0xFF4285F4),
                             shape: BoxShape.circle,
                             border: Border.all(color: Colors.white, width: 3.0),
                             boxShadow: [
                               BoxShadow(
-                                color: Colors.blue.withValues(alpha: 0.4),
-                                blurRadius: 8,
-                                spreadRadius: 2,
+                                color: const Color(
+                                  0xFF4285F4,
+                                ).withValues(alpha: 0.4),
+                                blurRadius: 10,
+                                spreadRadius: 4,
                               ),
                             ],
                           ),
@@ -174,22 +237,285 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     ],
                   ),
               ],
-            ), // FLUTTERMAP BİTİŞİ EKLENDİ VE VİRGÜL KONULDU
+            ),
+
+            // 2. ARAMA ÇUBUĞU VE FİLTRELER (Üst Katman - GECE MODU UYUMLU)
+            Positioned(
+              top: 0,
+              left: 0,
+              right: 0,
+              child: SafeArea(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16.0,
+                    vertical: 8.0,
+                  ),
+                  child: Column(
+                    children: [
+                      // Arama Çubuğu
+                      Container(
+                        height: 52,
+                        decoration: BoxDecoration(
+                          color: isDarkMode
+                              ? colorScheme.surfaceContainerHighest
+                              : Colors.white,
+                          borderRadius: BorderRadius.circular(12),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.1),
+                              blurRadius: 10,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
+                        ),
+                        child: Row(
+                          children: [
+                            Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16.0,
+                              ),
+                              child: Icon(
+                                Icons.search,
+                                color: colorScheme.onSurfaceVariant,
+                              ),
+                            ),
+                            Expanded(
+                              child: TextField(
+                                controller: _searchController,
+                                onChanged: _onSearchChanged,
+                                onTapOutside: (event) => FocusScope.of(
+                                  context,
+                                ).unfocus(), // arama çubuğu dışına tıklanınca klavyeyi ve imleci kapatır.
+                                style: TextStyle(color: colorScheme.onSurface),
+                                decoration: InputDecoration(
+                                  hintText: 'Bölge veya adres ara...',
+                                  border: InputBorder.none,
+                                  hintStyle: TextStyle(
+                                    color: colorScheme.onSurfaceVariant,
+                                  ),
+                                ),
+                              ),
+                            ),
+                            Container(
+                              width: 1,
+                              height: 24,
+                              color: colorScheme.outline.withValues(alpha: 0.3),
+                            ),
+                            // FİLTRE BUTONU: Çekmeceyi açar
+                            Builder(
+                              builder: (innerContext) {
+                                return IconButton(
+                                  icon: Icon(
+                                    Icons.tune,
+                                    color: colorScheme.onSurface,
+                                  ),
+                                  onPressed: () {
+                                    Scaffold.of(innerContext).openEndDrawer();
+                                  },
+                                );
+                              },
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+
+                      if (searchResults.isNotEmpty)
+                        Container(
+                          margin: const EdgeInsets.only(bottom: 12),
+                          decoration: BoxDecoration(
+                            color: isDarkMode
+                                ? colorScheme.surfaceContainerHighest
+                                : Colors.white,
+                            borderRadius: BorderRadius.circular(12),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.1),
+                                blurRadius: 10,
+                                offset: const Offset(0, 4),
+                              ),
+                            ],
+                          ),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: searchResults
+                                .map(
+                                  (r) => ListTile(
+                                    dense: true,
+                                    leading: Icon(
+                                      getCategoryIcon(r.category),
+                                      size: 20,
+                                      color: colorForStatus(r.status),
+                                    ),
+                                    title: Text(
+                                      r.title,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        color: colorScheme.onSurface,
+                                      ),
+                                    ),
+                                    subtitle: Text(
+                                      r.fullAddress ?? '',
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: TextStyle(
+                                        color: colorScheme.onSurfaceVariant,
+                                      ),
+                                    ),
+                                    onTap: () {
+                                      if (_isMapReady) {
+                                        _mapController.move(
+                                          LatLng(r.latitude, r.longitude),
+                                          16,
+                                        );
+                                      }
+                                      _searchController.clear();
+                                      ref
+                                              .read(
+                                                mapSearchQueryProvider.notifier,
+                                              )
+                                              .state =
+                                          '';
+                                      FocusScope.of(context).unfocus();
+                                      _showReportPreview(
+                                        context,
+                                        r,
+                                        colorScheme,
+                                        isDarkMode,
+                                      );
+                                    },
+                                  ),
+                                )
+                                .toList(),
+                          ),
+                        ),
+
+                      // Durum Filtre Çipleri (Gece Modu Uyumlu ve Sayısız)
+                      SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: Row(
+                          children: [
+                            Padding(
+                              padding: const EdgeInsets.only(right: 8.0),
+                              child: ChoiceChip(
+                                label: Text('Tümü'),
+                                selected: currentStatus == null,
+                                onSelected: (selected) {
+                                  if (selected)
+                                    ref
+                                            .read(filterStatusProvider.notifier)
+                                            .state =
+                                        null;
+                                },
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(20),
+                                ),
+                                backgroundColor: isDarkMode
+                                    ? colorScheme.surfaceContainerHighest
+                                    : Colors.white,
+                                selectedColor: colorScheme.primary,
+                                labelStyle: TextStyle(
+                                  color: currentStatus == null
+                                      ? colorScheme.onPrimary
+                                      : colorScheme.onSurface,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                                side: BorderSide.none,
+                                shadowColor: Colors.black.withValues(
+                                  alpha: 0.3,
+                                ),
+                                elevation: currentStatus == null ? 4 : 2,
+                              ),
+                            ),
+                            ...ReportStatus.values.map((status) {
+                              final isSelected = currentStatus == status;
+                              return Padding(
+                                padding: const EdgeInsets.only(right: 8.0),
+                                child: ChoiceChip(
+                                  avatar: Container(
+                                    width: 8,
+                                    height: 8,
+                                    decoration: BoxDecoration(
+                                      color: isSelected
+                                          ? colorScheme.onPrimary
+                                          : colorForStatus(status),
+                                      shape: BoxShape.circle,
+                                    ),
+                                  ),
+                                  label: Text(getStatusLabel(status)),
+                                  selected: isSelected,
+                                  onSelected: (selected) {
+                                    if (selected)
+                                      ref
+                                              .read(
+                                                filterStatusProvider.notifier,
+                                              )
+                                              .state =
+                                          status;
+                                  },
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(20),
+                                  ),
+                                  backgroundColor: isDarkMode
+                                      ? colorScheme.surfaceContainerHighest
+                                      : Colors.white,
+                                  selectedColor: colorScheme.primary,
+                                  labelStyle: TextStyle(
+                                    color: isSelected
+                                        ? colorScheme.onPrimary
+                                        : colorScheme.onSurface,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                  side: BorderSide.none,
+                                  elevation: isSelected ? 4 : 2,
+                                ),
+                              );
+                            }).toList(),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+
+            // 3. AKSİYON BUTONLARI (Alt Sağ Katman - Liste Ekranı ile Tutarlı)
             Positioned(
               bottom: 16,
               right: 16,
-              child: FloatingActionButton(
-                heroTag: 'recenter',
-                onPressed: () {
-                  if (_myLocation != null && _isMapReady) {
-                    _mapController.move(_myLocation!, 15);
-                  } else {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Konumunuz aranıyor...')),
-                    );
-                  }
-                },
-                child: const Icon(Icons.center_focus_strong),
+              child: SafeArea(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    // Konumlanma Butonu (Mini)
+                    FloatingActionButton.small(
+                      heroTag: 'recenter',
+                      backgroundColor: colorScheme.surface,
+                      foregroundColor: colorScheme.onSurface,
+                      elevation: 4,
+                      onPressed: () {
+                        if (_myLocation != null && _isMapReady) {
+                          _mapController.move(_myLocation!, 15);
+                        } else {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Konumunuz aranıyor...'),
+                            ),
+                          );
+                        }
+                      },
+                      child: const Icon(Icons.my_location),
+                    ),
+                    const SizedBox(height: 16),
+
+                    // TUTARLI FAB: Liste ekranındakiyle birebir aynı CreateReportFab()
+                    const CreateReportFab(),
+                  ],
+                ),
               ),
             ),
           ],
@@ -201,157 +527,165 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     );
   }
 
-  void _showReportPreview(BuildContext context, Report report) {
+  // YENİ TASARIM: Gece Modu Uyumlu Önizleme Kartı (Bottom Sheet)
+  void _showReportPreview(
+    BuildContext context,
+    Report report,
+    ColorScheme colorScheme,
+    bool isDarkMode,
+  ) {
     showModalBottomSheet(
       context: context,
-      builder: (context) => Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                report.imagePaths.isNotEmpty
-                    ? ClipRRect(
-                        borderRadius: BorderRadius.circular(8),
-                        child: report.imagePaths.first.startsWith('http')
-                            ? Image.network(
-                                report.imagePaths.first,
-                                width: 80,
-                                height: 80,
-                                fit: BoxFit.cover,
-                              )
-                            : Image.file(
-                                File(report.imagePaths.first),
-                                width: 80,
-                                height: 80,
-                                fit: BoxFit.cover,
-                              ),
-                      )
-                    : Container(
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(8),
-                          color: Colors.grey.withValues(alpha: 0.2),
-                        ),
-                        width: 80,
-                        height: 80,
-                        child: Icon(
-                          Icons.image_not_supported,
-                          color: Colors.grey,
-                        ),
-                      ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        report.title,
-                        style: const TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
-                        maxLines: 1, // uzunsa tek satırda kalsın
-                        overflow:
-                            TextOverflow.ellipsis, // sığmazsa sonuna ... koysun
-                      ),
-                      const SizedBox(height: 4),
-                      Row(
-                        children: [
-                          Icon(Icons.access_time, size: 16, color: Colors.grey),
-                          SizedBox(width: 6),
-                          Text(
-                            getFormattedDate(report.createdAt),
-                            style: TextStyle(fontSize: 12),
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+        decoration: BoxDecoration(
+          color: isDarkMode ? colorScheme.surfaceContainerHigh : Colors.white,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        child: SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Kaydırma Çubuğu (Drag Handle)
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  margin: const EdgeInsets.only(bottom: 24),
+                  decoration: BoxDecoration(
+                    color: colorScheme.outlineVariant,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    width: 72,
+                    height: 72,
+                    decoration: BoxDecoration(
+                      color: isDarkMode
+                          ? colorScheme.surfaceContainerHighest
+                          : const Color(0xFFF0EBE1),
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: report.imagePaths.isNotEmpty
+                        ? ClipRRect(
+                            borderRadius: BorderRadius.circular(16),
+                            child:
+                                report.imagePaths.first.startsWith('http') ||
+                                    kIsWeb
+                                ? Image.network(
+                                    report.imagePaths.first,
+                                    fit: BoxFit.cover,
+                                  )
+                                : Image.file(
+                                    File(report.imagePaths.first),
+                                    fit: BoxFit.cover,
+                                  ),
+                          )
+                        : Icon(
+                            Icons.image_outlined,
+                            color: colorScheme.outline,
+                            size: 32,
                           ),
-                        ],
-                      ),
-                      const SizedBox(height: 6),
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Icon(Icons.location_on, size: 14, color: Colors.grey),
-                          SizedBox(width: 6),
-                          Expanded(
-                            child: Text(
-                              report.fullAddress ?? 'Adres belirtilmemiş',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: Colors.grey,
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(width: 16),
+
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: colorForStatus(
+                              report.status,
+                            ).withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Text(
+                            getStatusLabel(report.status),
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                              // Gece modunda kontrast için renk ayarı
+                              color: isDarkMode
+                                  ? colorForStatus(
+                                      report.status,
+                                    ).withValues(alpha: 0.9)
+                                  : (colorForStatus(report.status) ==
+                                            Colors.green
+                                        ? Colors.green.shade800
+                                        : colorForStatus(report.status)),
                             ),
                           ),
-                        ],
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        report.description,
-                        style: TextStyle(fontSize: 14),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 6,
-                  ),
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(20),
-                    color: Colors.grey.withValues(alpha: 0.2),
-                  ),
-                  child: Text(
-                    getCategoryLabel(report.category),
-                    style: TextStyle(fontSize: 12),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 6,
-                  ),
-                  decoration: BoxDecoration(
-                    color: colorForStatus(report.status),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Text(
-                    getStatusLabel(report.status),
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          report.title,
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: colorScheme.onSurface,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          '${getCategoryLabel(report.category)} • ${report.fullAddress ?? "Adres yok"}',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: colorScheme.onSurfaceVariant,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
                     ),
                   ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                child: Text('Detaya Git'),
-                onPressed: () {
-                  Navigator.pop(context);
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => ReportDetailScreen(report: report),
-                    ),
-                  );
-                },
+                ],
               ),
-            ),
-          ],
+              const SizedBox(height: 24),
+
+              SizedBox(
+                width: double.infinity,
+                height: 50,
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: colorScheme.primary, // Temaya uygun buton
+                    foregroundColor: colorScheme.onPrimary,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    elevation: 0,
+                  ),
+                  onPressed: () {
+                    Navigator.pop(context);
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) =>
+                            ReportDetailScreen(report: report),
+                      ),
+                    );
+                  },
+                  child: const Text(
+                    'Detaya Git',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
