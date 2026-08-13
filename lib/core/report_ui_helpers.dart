@@ -1,37 +1,35 @@
 import 'package:intl/intl.dart';
-
+import 'app_colors.dart';
 import '../data/models/report.dart';
 import '../data/models/user.dart';
 import 'package:flutter/material.dart';
 
 Color colorForStatus(ReportStatus status, {bool isDarkMode = false}) {
   switch (status) {
-    case ReportStatus.pending: 
-      return isDarkMode ? Colors.grey.shade400 : const Color(0xFF757575);
-    case ReportStatus.inProgress: 
-      return isDarkMode ? const Color(0xFFFBBF24) : const Color(0xFF854F0B); // Açık Amber / Koyu Amber
-    case ReportStatus.resolved: 
-      return isDarkMode ? const Color(0xFF34D399) : const Color(0xFF085041); // Açık Teal / Koyu Teal
-    case ReportStatus.rejected: 
-      return isDarkMode ? const Color(0xFFF87171) : const Color(0xFFC1493B); // Açık Kırmızı / Koyu Kırmızı
-    case ReportStatus.invalid: 
-      return isDarkMode ? Colors.grey.shade500 : Colors.black54;
-  }
+    case ReportStatus.pending:
+      return isDarkMode ? AppColors.pendingFgDark : AppColors.pendingFg;
+    case ReportStatus.inProgress:
+      return isDarkMode ? AppColors.inProgressFgDark : AppColors.inProgressFg;
+    case ReportStatus.resolved:
+      return isDarkMode ? AppColors.resolvedFgDark : AppColors.resolvedFg;
+    case ReportStatus.rejected:
+      return isDarkMode ? AppColors.rejectedFgDark : AppColors.rejectedFg;
+    case ReportStatus.invalid:
+      return isDarkMode ? AppColors.invalidFgDark : AppColors.invalidFg;
+}
 }
 // 2. Şikayet Durumu Arka Plan (Tint) Renkleri (Koyu Tema Uyumlu)
 Color getStatusBgColor(ReportStatus status, {bool isDarkMode = false}) {
   if (isDarkMode) {
-    // Koyu temada fosforlu renkler yerine, ana rengin %15 şeffaf hali kullanılır.
+    
     return colorForStatus(status, isDarkMode: true).withValues(alpha: 0.15);
   }
-
-  // Açık tema için orijinal pastel (tint) tasarım renklerin
   switch (status) {
-    case ReportStatus.pending: return const Color(0xFFE5E5E5);
-    case ReportStatus.inProgress: return const Color(0xFFFAEEDA);
-    case ReportStatus.resolved: return const Color(0xFFE1F5EE);
-    case ReportStatus.rejected: return const Color(0xFFF9EAE8);
-    case ReportStatus.invalid: return Colors.grey.shade200;
+    case ReportStatus.pending: return AppColors.pendingBg;
+    case ReportStatus.inProgress: return AppColors.inProgressBg;
+    case ReportStatus.resolved: return AppColors.resolvedBg;
+    case ReportStatus.rejected: return AppColors.rejectedBg;
+    case ReportStatus.invalid: return AppColors.invalidBg;
   }
 }
 

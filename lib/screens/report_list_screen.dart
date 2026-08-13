@@ -10,38 +10,58 @@ import '../data/models/report.dart';
 import 'report_detail_screen.dart';
 import '../data/models/user.dart';
 import '../widgets/notification_bell.dart';
-import '../core/app_colors.dart'; // YENİ: Merkezi renk dosyamız
+import '../core/app_colors.dart';
 
-class ReportListScreen extends ConsumerWidget {
-  const ReportListScreen({super.key});
+class ReportListScreen extends ConsumerStatefulWidget {
+  final ReportStatus? initialStatusFilter;
+  const ReportListScreen({super.key, this.initialStatusFilter});
+  @override
+  ConsumerState<ReportListScreen> createState() => _ReportListScreenState();
+}
+
+class _ReportListScreenState extends ConsumerState<ReportListScreen> {
+  @override
+  void initState() {
+    super.initState();
+    // Ekran açıldığında parametre varsa Riverpod state'ine yazdırıyoruz
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(filterCategoryProvider.notifier).state = null;
+      ref.read(filterStatusProvider.notifier).state = widget.initialStatusFilter;
+    });
+    }
+  
+
+ 
 
   String _getPageTitle(UserRole? role) {
     if (role == UserRole.citizen) return 'Taleplerim';
     if (role == UserRole.staff) return 'Görevlerim';
-    if (role == UserRole.admin || role == UserRole.managing) return 'Tüm Kayıtlar';
+    if (role == UserRole.admin || role == UserRole.managing)
+      return 'Tüm Kayıtlar';
     return 'Bildirim Listesi';
   }
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final reportAsync = ref.watch(filteredReportListProvider);
     final currentUser = ref.watch(currentUserProvider);
     final currentStatus = ref.watch(filterStatusProvider);
     final isCitizen = currentUser?.role == UserRole.citizen;
 
-    // Tema Değişkenleri
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
     final isDarkMode = theme.brightness == Brightness.dark;
 
-    // DÜZELTME: AppColors.navy kullanımı
     final appBarBgColor = isDarkMode ? colorScheme.surface : AppColors.navy;
     final appBarFgColor = isDarkMode ? colorScheme.onSurface : Colors.white;
-    final appBarSubtitleColor = isDarkMode ? colorScheme.onSurfaceVariant : Colors.grey.shade400;
+    final appBarSubtitleColor = isDarkMode
+        ? colorScheme.onSurfaceVariant
+        : Colors.grey.shade400;
 
     return Scaffold(
-      // DÜZELTME: AppColors.surfaceWarmLight kullanımı
-      backgroundColor: isDarkMode ? colorScheme.surface : AppColors.surfaceWarmLight,
+      backgroundColor: isDarkMode
+          ? colorScheme.surface
+          : AppColors.surfaceWarmLight,
       appBar: AppBar(
         elevation: 0,
         backgroundColor: appBarBgColor,
@@ -69,9 +89,7 @@ class ReportListScreen extends ConsumerWidget {
             builder: (context) {
               return IconButton(
                 icon: const Icon(Icons.tune),
-                onPressed: () {
-                  Scaffold.of(context).openEndDrawer();
-                },
+                onPressed: () => Scaffold.of(context).openEndDrawer(),
               );
             },
           ),
@@ -81,11 +99,14 @@ class ReportListScreen extends ConsumerWidget {
         backgroundColor: colorScheme.surface,
         child: const SafeArea(child: FilterDrawerContent()),
       ),
-      floatingActionButton: const CreateReportFab(),
+
+      floatingActionButton: const Padding(
+        padding: EdgeInsets.only(bottom: 90.0),
+        child: CreateReportFab(),
+      ),
       floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
       body: Column(
         children: [
-          // YATAY DURUM FİLTRELERİ
           Container(
             width: double.infinity,
             color: isDarkMode ? colorScheme.surface : Colors.white,
@@ -101,17 +122,25 @@ class ReportListScreen extends ConsumerWidget {
                       label: const Text('Tümü'),
                       selected: currentStatus == null,
                       onSelected: (selected) {
-                        if (selected) ref.read(filterStatusProvider.notifier).state = null;
+                        if (selected)
+                          ref.read(filterStatusProvider.notifier).state = null;
                       },
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(20),
                       ),
-                      backgroundColor: isDarkMode ? colorScheme.surfaceContainerHighest : Colors.grey.shade100,
-                      // DÜZELTME: AppColors.navy kullanımı
-                      selectedColor: isDarkMode ? colorScheme.primary.withValues(alpha: 0.3) : AppColors.navy,
+                      backgroundColor: isDarkMode
+                          ? colorScheme.surfaceContainerHighest
+                          : Colors.grey.shade100,
+                      selectedColor: isDarkMode
+                          ? colorScheme.primary.withValues(alpha: 0.3)
+                          : AppColors.navy,
                       labelStyle: TextStyle(
-                        color: currentStatus == null ? (isDarkMode ? colorScheme.primary : Colors.white) : colorScheme.onSurfaceVariant,
-                        fontWeight: currentStatus == null ? FontWeight.bold : FontWeight.normal,
+                        color: currentStatus == null
+                            ? (isDarkMode ? colorScheme.primary : Colors.white)
+                            : colorScheme.onSurfaceVariant,
+                        fontWeight: currentStatus == null
+                            ? FontWeight.bold
+                            : FontWeight.normal,
                       ),
                       side: BorderSide.none,
                     ),
@@ -124,17 +153,28 @@ class ReportListScreen extends ConsumerWidget {
                         label: Text(getStatusLabel(status)),
                         selected: isSelected,
                         onSelected: (selected) {
-                          if (selected) ref.read(filterStatusProvider.notifier).state = status;
+                          if (selected)
+                            ref.read(filterStatusProvider.notifier).state =
+                                status;
                         },
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(20),
                         ),
-                        backgroundColor: isDarkMode ? colorScheme.surfaceContainerHighest : Colors.grey.shade100,
-                        // DÜZELTME: AppColors.navy kullanımı
-                        selectedColor: isDarkMode ? colorScheme.primary.withValues(alpha: 0.3) : AppColors.navy,
+                        backgroundColor: isDarkMode
+                            ? colorScheme.surfaceContainerHighest
+                            : Colors.grey.shade100,
+                        selectedColor: isDarkMode
+                            ? colorScheme.primary.withValues(alpha: 0.3)
+                            : AppColors.navy,
                         labelStyle: TextStyle(
-                          color: isSelected ? (isDarkMode ? colorScheme.primary : Colors.white) : colorScheme.onSurfaceVariant,
-                          fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                          color: isSelected
+                              ? (isDarkMode
+                                    ? colorScheme.primary
+                                    : Colors.white)
+                              : colorScheme.onSurfaceVariant,
+                          fontWeight: isSelected
+                              ? FontWeight.bold
+                              : FontWeight.normal,
                         ),
                         side: BorderSide.none,
                       ),
@@ -144,8 +184,6 @@ class ReportListScreen extends ConsumerWidget {
               ),
             ),
           ),
-          
-          // LİSTE ALANI
           Expanded(
             child: reportAsync.when(
               data: (reports) {
@@ -177,25 +215,43 @@ class ReportListScreen extends ConsumerWidget {
                     } catch (_) {}
                   },
                   child: ListView.builder(
-                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    padding: const EdgeInsets.only(
+                      top: 8,
+                      bottom: 120,
+                    ), // LİSTE ALT BOŞLUĞU EKLENDİ
                     itemCount: reports.length,
                     itemBuilder: (context, index) {
                       final report = reports[index];
-                      // DÜZELTME: Karanlık tema destekli dinamik renk
-                      final statusColor = colorForStatus(report.status, isDarkMode: isDarkMode);
-                      
+                      final statusColor = colorForStatus(
+                        report.status,
+                        isDarkMode: isDarkMode,
+                      );
                       return GestureDetector(
                         onTap: () {
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (context) => ReportDetailScreen(report: report),
+                              builder: (context) =>
+                                  ReportDetailScreen(report: report),
                             ),
-                          );
+                         ).then((_) {
+                            // Detaydan geri dönünce listeyi tazele
+                            ref.invalidate(filteredReportListProvider);
+                          });
                         },
                         child: isCitizen
-                            ? _buildCitizenCard(report, statusColor, colorScheme, isDarkMode)
-                            : _buildStaffCard(report, statusColor, colorScheme, isDarkMode),
+                            ? _buildCitizenCard(
+                                report,
+                                statusColor,
+                                colorScheme,
+                                isDarkMode,
+                              )
+                            : _buildStaffCard(
+                                report,
+                                statusColor,
+                                colorScheme,
+                                isDarkMode,
+                              ),
                       );
                     },
                   ),
@@ -216,26 +272,32 @@ class ReportListScreen extends ConsumerWidget {
   }
 
   // vatandaş görünümü
-  Widget _buildCitizenCard(Report report, Color statusColor, ColorScheme colorScheme, bool isDarkMode) {
+  Widget _buildCitizenCard(
+    Report report,
+    Color statusColor,
+    ColorScheme colorScheme,
+    bool isDarkMode,
+  ) {
     return Container(
       margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
       decoration: BoxDecoration(
         color: colorScheme.surface,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: colorScheme.outline.withValues(alpha: 0.15)),
-        boxShadow: isDarkMode ? [] : [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.03),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
+        boxShadow: isDarkMode
+            ? []
+            : [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.03),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
+              ],
       ),
       child: IntrinsicHeight(
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // 1. Sol Renkli Çizgi
             Container(
               width: 6,
               decoration: BoxDecoration(
@@ -245,14 +307,12 @@ class ReportListScreen extends ConsumerWidget {
                 ),
               ),
             ),
-            // 2. Orta İçerik
             Expanded(
               child: Padding(
                 padding: const EdgeInsets.all(16.0),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Kategori ve Durum Etiketi
                     Row(
                       children: [
                         Icon(
@@ -271,10 +331,15 @@ class ReportListScreen extends ConsumerWidget {
                         ),
                         const Spacer(),
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
+                          ),
                           decoration: BoxDecoration(
-                            // DÜZELTME: Yeni tint helper'ı kullanımı
-                            color: getStatusBgColor(report.status, isDarkMode: isDarkMode), 
+                            color: getStatusBgColor(
+                              report.status,
+                              isDarkMode: isDarkMode,
+                            ),
                             borderRadius: BorderRadius.circular(8),
                           ),
                           child: Text(
@@ -289,7 +354,6 @@ class ReportListScreen extends ConsumerWidget {
                       ],
                     ),
                     const SizedBox(height: 12),
-                    // Başlık ve Açıklama
                     Text(
                       report.title,
                       style: TextStyle(
@@ -309,7 +373,6 @@ class ReportListScreen extends ConsumerWidget {
                       ),
                     ),
                     const SizedBox(height: 12),
-                    // Adres
                     Row(
                       children: [
                         Icon(
@@ -335,7 +398,6 @@ class ReportListScreen extends ConsumerWidget {
                 ),
               ),
             ),
-            // 3. Sağ Resim Thumbnail (Eğer varsa)
             if (report.imagePaths.isNotEmpty)
               Padding(
                 padding: const EdgeInsets.only(right: 12, top: 12, bottom: 12),
@@ -348,12 +410,14 @@ class ReportListScreen extends ConsumerWidget {
                         ? Image.network(
                             report.imagePaths.first,
                             fit: BoxFit.cover,
-                            errorBuilder: (context, error, stackTrace) => _buildPlaceholderImage(colorScheme),
+                            errorBuilder: (c, e, s) =>
+                                _buildPlaceholderImage(colorScheme),
                           )
                         : Image.file(
                             File(report.imagePaths.first),
                             fit: BoxFit.cover,
-                            errorBuilder: (context, error, stackTrace) => _buildPlaceholderImage(colorScheme),
+                            errorBuilder: (c, e, s) =>
+                                _buildPlaceholderImage(colorScheme),
                           ),
                   ),
                 ),
@@ -372,7 +436,12 @@ class ReportListScreen extends ConsumerWidget {
   }
 
   // personel ve yönetici görünümü
-  Widget _buildStaffCard(Report report, Color statusColor, ColorScheme colorScheme, bool isDarkMode) {
+  Widget _buildStaffCard(
+    Report report,
+    Color statusColor,
+    ColorScheme colorScheme,
+    bool isDarkMode,
+  ) {
     return Container(
       margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 16),
       padding: const EdgeInsets.all(12),
@@ -380,25 +449,25 @@ class ReportListScreen extends ConsumerWidget {
         color: colorScheme.surface,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: colorScheme.outline.withValues(alpha: 0.15)),
-        boxShadow: isDarkMode ? [] : [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.02),
-            blurRadius: 5,
-            offset: const Offset(0, 2),
-          ),
-        ],
+        boxShadow: isDarkMode
+            ? []
+            : [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.02),
+                  blurRadius: 5,
+                  offset: const Offset(0, 2),
+                ),
+              ],
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          // avatar / kategori ikonu
           Container(
             width: 44,
             height: 44,
             decoration: BoxDecoration(
-              // DÜZELTME: Yeni tint helper'ı ve kare köşe (Squircle) tasarımı
               color: getStatusBgColor(report.status, isDarkMode: isDarkMode),
-              borderRadius: BorderRadius.circular(8), 
+              borderRadius: BorderRadius.circular(8),
             ),
             child: Icon(
               getCategoryIcon(report.category),
@@ -459,9 +528,9 @@ class ReportListScreen extends ConsumerWidget {
 
 class FilterDrawerContent extends ConsumerStatefulWidget {
   const FilterDrawerContent({super.key});
-
   @override
-  ConsumerState<FilterDrawerContent> createState() => _FilterDrawerContentState();
+  ConsumerState<FilterDrawerContent> createState() =>
+      _FilterDrawerContentState();
 }
 
 class _FilterDrawerContentState extends ConsumerState<FilterDrawerContent> {
@@ -477,7 +546,7 @@ class _FilterDrawerContentState extends ConsumerState<FilterDrawerContent> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
-    
+
     return Column(
       children: [
         Expanded(
@@ -531,7 +600,9 @@ class _FilterDrawerContentState extends ConsumerState<FilterDrawerContent> {
                             avatar: Icon(
                               Icons.category,
                               size: 16,
-                              color: _tempCategory == null ? colorScheme.primary : colorScheme.onSurfaceVariant,
+                              color: _tempCategory == null
+                                  ? colorScheme.primary
+                                  : colorScheme.onSurfaceVariant,
                             ),
                             label: const Text('Tüm Kategoriler'),
                             selected: _tempCategory == null,
@@ -540,9 +611,18 @@ class _FilterDrawerContentState extends ConsumerState<FilterDrawerContent> {
                                 _tempCategory = null;
                               });
                             },
-                            backgroundColor: colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
-                            selectedColor: colorScheme.primary.withValues(alpha: 0.2),
+                            backgroundColor: colorScheme.surfaceContainerHighest
+                                .withValues(alpha: 0.5),
+                            selectedColor: colorScheme.primary.withValues(
+                              alpha: 0.2,
+                            ),
                             side: BorderSide.none,
+
+                            labelStyle: TextStyle(
+                              color: _tempCategory == null
+                                  ? colorScheme.primary
+                                  : colorScheme.onSurface,
+                            ),
                           ),
                           ...ReportCategory.values.map((category) {
                             final isSelected = _tempCategory == category;
@@ -550,7 +630,9 @@ class _FilterDrawerContentState extends ConsumerState<FilterDrawerContent> {
                               avatar: Icon(
                                 getCategoryIcon(category),
                                 size: 16,
-                                color: isSelected ? colorScheme.primary : colorScheme.onSurfaceVariant,
+                                color: isSelected
+                                    ? colorScheme.primary
+                                    : colorScheme.onSurfaceVariant,
                               ),
                               label: Text(getCategoryLabel(category)),
                               selected: isSelected,
@@ -559,9 +641,19 @@ class _FilterDrawerContentState extends ConsumerState<FilterDrawerContent> {
                                   _tempCategory = isSelected ? null : category;
                                 });
                               },
-                              backgroundColor: colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
-                              selectedColor: colorScheme.primary.withValues(alpha: 0.2),
+                              backgroundColor: colorScheme
+                                  .surfaceContainerHighest
+                                  .withValues(alpha: 0.5),
+                              selectedColor: colorScheme.primary.withValues(
+                                alpha: 0.2,
+                              ),
                               side: BorderSide.none,
+
+                              labelStyle: TextStyle(
+                                color: isSelected
+                                    ? colorScheme.primary
+                                    : colorScheme.onSurface,
+                              ),
                             );
                           }).toList(),
                         ],

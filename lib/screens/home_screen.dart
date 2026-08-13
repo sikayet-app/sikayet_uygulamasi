@@ -6,12 +6,13 @@ import '../data/models/report.dart';
 import '../core/location_service.dart';
 import '../providers/report_provider.dart';
 import '../core/report_ui_helpers.dart';
+import '../core/app_colors.dart';
 import 'dart:io';
 import 'report_detail_screen.dart';
 import 'package:flutter_map_marker_cluster/flutter_map_marker_cluster.dart';
 import 'package:sikayet_uygulamasi/widgets/create_report_fab.dart';
 import 'package:flutter/foundation.dart';
-import 'report_list_screen.dart'; // FilterDrawerContent için gerekli
+import 'report_list_screen.dart';
 import 'dart:async';
 
 class HomeScreen extends ConsumerStatefulWidget {
@@ -69,12 +70,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final reportAsync = ref.watch(filteredReportListProvider);
     final currentStatus = ref.watch(filterStatusProvider);
     final searchResults = ref.watch(mapSearchResultsProvider);
+
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
     final isDarkMode = theme.brightness == Brightness.dark;
 
     return Scaffold(
-      // HARİTA EKRANINA DA FİLTRE ÇEKMECESİ EKLENDİ
       endDrawer: Drawer(
         backgroundColor: colorScheme.surface,
         child: const SafeArea(child: FilterDrawerContent()),
@@ -82,7 +83,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       body: reportAsync.when(
         data: (reports) => Stack(
           children: [
-            // 1. HARİTA KATMANI
+            // HARİTA
             FlutterMap(
               mapController: _mapController,
               options: MapOptions(
@@ -99,7 +100,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 ),
               ),
               children: [
-                // Gece modunda harita renklerini tersine çeviren harika bir hile
                 TileLayer(
                   urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
                   userAgentPackageName: 'com.example.sikayet_uygulamasi',
@@ -142,7 +142,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     padding: const EdgeInsets.all(50),
                     maxZoom: 15,
                     markers: reports.map((report) {
-                      final statusColor = colorForStatus(report.status);
+                      final statusColor = colorForStatus(
+                        report.status,
+                        isDarkMode: isDarkMode,
+                      );
                       return Marker(
                         point: LatLng(report.latitude, report.longitude),
                         width: 44,
@@ -185,7 +188,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     builder: (context, markers) {
                       return Container(
                         decoration: BoxDecoration(
-                          color: colorScheme.primary, // Temaya uygun renk
+                          color: AppColors.navy,
                           shape: BoxShape.circle,
                           border: Border.all(color: Colors.white, width: 2.5),
                           boxShadow: const [
@@ -239,7 +242,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               ],
             ),
 
-            // 2. ARAMA ÇUBUĞU VE FİLTRELER (Üst Katman - GECE MODU UYUMLU)
+            //  ARAMA ÇUBUĞU VE FİLTRELER
             Positioned(
               top: 0,
               left: 0,
@@ -283,9 +286,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                               child: TextField(
                                 controller: _searchController,
                                 onChanged: _onSearchChanged,
-                                onTapOutside: (event) => FocusScope.of(
-                                  context,
-                                ).unfocus(), // arama çubuğu dışına tıklanınca klavyeyi ve imleci kapatır.
+                                onTapOutside: (event) =>
+                                    FocusScope.of(context).unfocus(),
                                 style: TextStyle(color: colorScheme.onSurface),
                                 decoration: InputDecoration(
                                   hintText: 'Bölge veya adres ara...',
@@ -301,7 +303,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                               height: 24,
                               color: colorScheme.outline.withValues(alpha: 0.3),
                             ),
-                            // FİLTRE BUTONU: Çekmeceyi açar
                             Builder(
                               builder: (innerContext) {
                                 return IconButton(
@@ -320,6 +321,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       ),
                       const SizedBox(height: 12),
 
+                      // Arama Sonuçları
                       if (searchResults.isNotEmpty)
                         Container(
                           margin: const EdgeInsets.only(bottom: 12),
@@ -345,7 +347,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                     leading: Icon(
                                       getCategoryIcon(r.category),
                                       size: 20,
-                                      color: colorForStatus(r.status),
+
+                                      color: colorForStatus(
+                                        r.status,
+                                        isDarkMode: isDarkMode,
+                                      ),
                                     ),
                                     title: Text(
                                       r.title,
@@ -392,7 +398,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           ),
                         ),
 
-                      // Durum Filtre Çipleri (Gece Modu Uyumlu ve Sayısız)
+                      // Durum Filtre Çipleri
                       SingleChildScrollView(
                         scrollDirection: Axis.horizontal,
                         child: Row(
@@ -400,7 +406,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                             Padding(
                               padding: const EdgeInsets.only(right: 8.0),
                               child: ChoiceChip(
-                                label: Text('Tümü'),
+                                label: const Text('Tümü'),
                                 selected: currentStatus == null,
                                 onSelected: (selected) {
                                   if (selected)
@@ -415,10 +421,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                 backgroundColor: isDarkMode
                                     ? colorScheme.surfaceContainerHighest
                                     : Colors.white,
-                                selectedColor: colorScheme.primary,
+
+                                selectedColor: isDarkMode
+                                    ? colorScheme.primary.withValues(alpha: 0.3)
+                                    : AppColors.navy,
                                 labelStyle: TextStyle(
                                   color: currentStatus == null
-                                      ? colorScheme.onPrimary
+                                      ? (isDarkMode
+                                            ? colorScheme.primary
+                                            : Colors.white)
                                       : colorScheme.onSurface,
                                   fontWeight: FontWeight.bold,
                                 ),
@@ -439,8 +450,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                     height: 8,
                                     decoration: BoxDecoration(
                                       color: isSelected
-                                          ? colorScheme.onPrimary
-                                          : colorForStatus(status),
+                                          ? (isDarkMode
+                                                ? colorScheme.primary
+                                                : Colors.white)
+                                          : colorForStatus(
+                                              status,
+                                              isDarkMode: isDarkMode,
+                                            ),
                                       shape: BoxShape.circle,
                                     ),
                                   ),
@@ -461,10 +477,17 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                   backgroundColor: isDarkMode
                                       ? colorScheme.surfaceContainerHighest
                                       : Colors.white,
-                                  selectedColor: colorScheme.primary,
+
+                                  selectedColor: isDarkMode
+                                      ? colorScheme.primary.withValues(
+                                          alpha: 0.3,
+                                        )
+                                      : AppColors.navy,
                                   labelStyle: TextStyle(
                                     color: isSelected
-                                        ? colorScheme.onPrimary
+                                        ? (isDarkMode
+                                              ? colorScheme.primary
+                                              : Colors.white)
                                         : colorScheme.onSurface,
                                     fontWeight: FontWeight.bold,
                                   ),
@@ -482,7 +505,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               ),
             ),
 
-            // 3. AKSİYON BUTONLARI (Alt Sağ Katman - Liste Ekranı ile Tutarlı)
+            // AKSİYON BUTONLARI
             Positioned(
               bottom: 16,
               right: 16,
@@ -491,7 +514,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
-                    // Konumlanma Butonu (Mini)
                     FloatingActionButton.small(
                       heroTag: 'recenter',
                       backgroundColor: colorScheme.surface,
@@ -512,7 +534,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     ),
                     const SizedBox(height: 16),
 
-                    // TUTARLI FAB: Liste ekranındakiyle birebir aynı CreateReportFab()
                     const CreateReportFab(),
                   ],
                 ),
@@ -527,7 +548,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     );
   }
 
-  // YENİ TASARIM: Gece Modu Uyumlu Önizleme Kartı (Bottom Sheet)
+  // Önizleme Kartı (Bottom Sheet)
   void _showReportPreview(
     BuildContext context,
     Report report,
@@ -548,7 +569,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Kaydırma Çubuğu (Drag Handle)
               Center(
                 child: Container(
                   width: 40,
@@ -560,7 +580,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   ),
                 ),
               ),
-
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -570,7 +589,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     decoration: BoxDecoration(
                       color: isDarkMode
                           ? colorScheme.surfaceContainerHighest
-                          : const Color(0xFFF0EBE1),
+                          : AppColors.surfaceWarmLight,
                       borderRadius: BorderRadius.circular(16),
                     ),
                     child: report.imagePaths.isNotEmpty
@@ -595,7 +614,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           ),
                   ),
                   const SizedBox(width: 16),
-
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -606,9 +624,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                             vertical: 4,
                           ),
                           decoration: BoxDecoration(
-                            color: colorForStatus(
+                            color: getStatusBgColor(
                               report.status,
-                            ).withValues(alpha: 0.15),
+                              isDarkMode: isDarkMode,
+                            ),
                             borderRadius: BorderRadius.circular(8),
                           ),
                           child: Text(
@@ -616,15 +635,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                             style: TextStyle(
                               fontSize: 11,
                               fontWeight: FontWeight.bold,
-                              // Gece modunda kontrast için renk ayarı
-                              color: isDarkMode
-                                  ? colorForStatus(
-                                      report.status,
-                                    ).withValues(alpha: 0.9)
-                                  : (colorForStatus(report.status) ==
-                                            Colors.green
-                                        ? Colors.green.shade800
-                                        : colorForStatus(report.status)),
+
+                              color: colorForStatus(
+                                report.status,
+                                isDarkMode: isDarkMode,
+                              ),
                             ),
                           ),
                         ),
@@ -655,13 +670,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 ],
               ),
               const SizedBox(height: 24),
-
               SizedBox(
                 width: double.infinity,
                 height: 50,
                 child: ElevatedButton(
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: colorScheme.primary, // Temaya uygun buton
+                    backgroundColor: colorScheme.primary,
                     foregroundColor: colorScheme.onPrimary,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),

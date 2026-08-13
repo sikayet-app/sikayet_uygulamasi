@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:sikayet_uygulamasi/providers/notification_provider.dart';
 import 'package:sikayet_uygulamasi/providers/report_provider.dart';
-import '../core/app_colors.dart'; // MERKEZİ RENK DOSYAMIZ EKLENDİ
+import '../core/app_colors.dart';
 import 'report_detail_screen.dart';
 
 class NotificationsScreen extends ConsumerWidget {
@@ -16,9 +16,14 @@ class NotificationsScreen extends ConsumerWidget {
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
-      backgroundColor: isDarkMode ? colorScheme.surface : const Color(0xFFF5F4F0),
+      backgroundColor: isDarkMode
+          ? colorScheme.surface
+          : const Color(0xFFF5F4F0),
       appBar: AppBar(
-        title: const Text('Bildirimlerim', style: TextStyle(fontWeight: FontWeight.bold)),
+        title: const Text(
+          'Bildirimlerim',
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
         centerTitle: false,
         elevation: 0,
         backgroundColor: Colors.transparent,
@@ -26,12 +31,18 @@ class NotificationsScreen extends ConsumerWidget {
           TextButton(
             onPressed: () {
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Tümü okundu işaretleme API si bekleniyor')),
+                const SnackBar(
+                  content: Text('Tümü okundu işaretleme API si bekleniyor'),
+                ),
               );
             },
             child: Text(
               'Tümünü okundu işaretle',
-              style: TextStyle(color: colorScheme.primary, fontWeight: FontWeight.bold, fontSize: 13),
+              style: TextStyle(
+                color: colorScheme.primary,
+                fontWeight: FontWeight.bold,
+                fontSize: 13,
+              ),
             ),
           ),
           const SizedBox(width: 8),
@@ -45,19 +56,27 @@ class NotificationsScreen extends ConsumerWidget {
                 mainAxisSize: MainAxisSize.min,
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.notifications_off_outlined, size: 64, color: colorScheme.outline.withValues(alpha: 0.5)),
+                  Icon(
+                    Icons.notifications_off_outlined,
+                    size: 64,
+                    color: colorScheme.outline.withValues(alpha: 0.5),
+                  ),
                   const SizedBox(height: 12),
-                  Text('Henüz bildirim yok', style: TextStyle(color: colorScheme.onSurfaceVariant)),
+                  Text(
+                    'Henüz bildirim yok',
+                    style: TextStyle(color: colorScheme.onSurfaceVariant),
+                  ),
                 ],
               ),
             );
           }
 
-          // Güvenli Sıralama (API'nin sırasına güvenmiyoruz)
           final sortedList = List<dynamic>.from(notifications);
-          sortedList.sort((a, b) => (b.createdAt as DateTime).compareTo(a.createdAt as DateTime));
+          sortedList.sort(
+            (a, b) =>
+                (b.createdAt as DateTime).compareTo(a.createdAt as DateTime),
+          );
 
-          // Sıralanmış listeyi grupluyoruz
           final groupedNotifications = _groupByDay(sortedList);
 
           return RefreshIndicator(
@@ -77,9 +96,13 @@ class NotificationsScreen extends ConsumerWidget {
                 return Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // GRUP BAŞLIĞI (Overline)
+                    // GRUP BAŞLIĞI
                     Padding(
-                      padding: const EdgeInsets.only(top: 16, bottom: 8, left: 4),
+                      padding: const EdgeInsets.only(
+                        top: 16,
+                        bottom: 8,
+                        left: 4,
+                      ),
                       child: Text(
                         groupKey,
                         style: TextStyle(
@@ -90,28 +113,49 @@ class NotificationsScreen extends ConsumerWidget {
                         ),
                       ),
                     ),
-                    
+
                     // GRUP İÇİNDEKİ BİLDİRİMLER
                     ...items.map((notification) {
                       final isUnread = notification.readAt == null;
                       final title = notification.data['title'] ?? 'Bildirim';
                       final message = notification.data['message'] ?? '';
-                      
+
                       final iconData = _getNotificationIcon(title);
-                      final iconColor = _getNotificationColor(title, isDarkMode);
+                      final iconColor = _getNotificationColor(
+                        title,
+                        isDarkMode,
+                      );
                       final timeString = _getTimeString(notification.createdAt);
 
                       return Container(
                         margin: const EdgeInsets.only(bottom: 8),
                         decoration: BoxDecoration(
-                          color: isDarkMode ? colorScheme.surfaceContainerHigh : Colors.white,
+                          color: isDarkMode
+                              ? colorScheme.surfaceContainerHigh
+                              : Colors.white,
                           borderRadius: BorderRadius.circular(16),
-                          border: isUnread 
-                            ? const Border(left: BorderSide(color: AppColors.accent, width: 4)) // SABİT VURGU RENGİ
-                            : Border.all(color: colorScheme.outline.withValues(alpha: 0.1), width: 1),
-                          boxShadow: isDarkMode ? [] : [
-                            BoxShadow(color: Colors.black.withValues(alpha: 0.02), blurRadius: 10, offset: const Offset(0, 4)),
-                          ],
+                          border: isUnread
+                              ? const Border(
+                                  left: BorderSide(
+                                    color: AppColors.accent,
+                                    width: 4,
+                                  ),
+                                ) // SABİT VURGU RENGİ
+                              : Border.all(
+                                  color: colorScheme.outline.withValues(
+                                    alpha: 0.1,
+                                  ),
+                                  width: 1,
+                                ),
+                          boxShadow: isDarkMode
+                              ? []
+                              : [
+                                  BoxShadow(
+                                    color: Colors.black.withValues(alpha: 0.02),
+                                    blurRadius: 10,
+                                    offset: const Offset(0, 4),
+                                  ),
+                                ],
                         ),
                         child: Material(
                           color: Colors.transparent,
@@ -120,25 +164,46 @@ class NotificationsScreen extends ConsumerWidget {
                             onTap: () async {
                               if (isUnread) {
                                 try {
-                                  await ref.read(notificationRepositoryProvider).markAsRead(notification.id);
+                                  await ref
+                                      .read(notificationRepositoryProvider)
+                                      .markAsRead(notification.id);
                                   ref.invalidate(allNotificationsProvider);
                                   ref.invalidate(unreadNotificationsProvider);
                                 } catch (e) {}
                               }
 
-                              final reportIdStr = notification.data['report_id']?.toString();
+                              final reportIdStr = notification.data['report_id']
+                                  ?.toString();
                               if (reportIdStr != null && context.mounted) {
-                                final reportAsyncValue = ref.read(reportListProvider);
+                                final reportAsyncValue = ref.read(
+                                  reportListProvider,
+                                );
                                 reportAsyncValue.whenData((reports) {
                                   try {
-                                    final targetReport = reports.firstWhere((r) => r.id == reportIdStr);
+                                    final targetReport = reports.firstWhere(
+                                      (r) => r.id == reportIdStr,
+                                    );
                                     if (context.mounted) {
-                                      Navigator.push(context, MaterialPageRoute(builder: (context) => ReportDetailScreen(report: targetReport)));
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (context) =>
+                                              ReportDetailScreen(
+                                                report: targetReport,
+                                              ),
+                                        ),
+                                      );
                                     }
                                   } catch (e) {
                                     if (context.mounted) {
-                                      ScaffoldMessenger.of(context).showSnackBar(
-                                        const SnackBar(content: Text('Bu şikayet artık bulunamadı.')),
+                                      ScaffoldMessenger.of(
+                                        context,
+                                      ).showSnackBar(
+                                        const SnackBar(
+                                          content: Text(
+                                            'Bu şikayet artık bulunamadı.',
+                                          ),
+                                        ),
                                       );
                                     }
                                   }
@@ -150,26 +215,35 @@ class NotificationsScreen extends ConsumerWidget {
                               child: Row(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  // KATEGORİ İKONU (Artık yuvarlatılmış kare)
+                                  // KATEGORİ İKONU
                                   Container(
                                     padding: const EdgeInsets.all(10),
                                     decoration: BoxDecoration(
                                       color: iconColor.withValues(alpha: 0.15),
-                                      borderRadius: BorderRadius.circular(8), // Düzeltilen kısım
+                                      borderRadius: BorderRadius.circular(
+                                        8,
+                                      ), // Düzeltilen kısım
                                     ),
-                                    child: Icon(iconData, color: iconColor, size: 20),
+                                    child: Icon(
+                                      iconData,
+                                      color: iconColor,
+                                      size: 20,
+                                    ),
                                   ),
                                   const SizedBox(width: 16),
-                                  
+
                                   Expanded(
                                     child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
                                       children: [
                                         Text(
                                           title,
                                           style: TextStyle(
                                             fontSize: 15,
-                                            fontWeight: isUnread ? FontWeight.bold : FontWeight.w600,
+                                            fontWeight: isUnread
+                                                ? FontWeight.bold
+                                                : FontWeight.w600,
                                             color: colorScheme.onSurface,
                                           ),
                                         ),
@@ -179,7 +253,9 @@ class NotificationsScreen extends ConsumerWidget {
                                           style: TextStyle(
                                             fontSize: 13,
                                             color: colorScheme.onSurfaceVariant,
-                                            fontWeight: isUnread ? FontWeight.w500 : FontWeight.normal,
+                                            fontWeight: isUnread
+                                                ? FontWeight.w500
+                                                : FontWeight.normal,
                                           ),
                                         ),
                                         const SizedBox(height: 6),
@@ -194,15 +270,18 @@ class NotificationsScreen extends ConsumerWidget {
                                       ],
                                     ),
                                   ),
-                                  
-                                  // OKUNMAMIŞ NOKTASI (SABİT VURGU RENGİ)
+
+                                  // OKUNMAMIŞ NOKTASI
                                   if (isUnread)
                                     Container(
                                       width: 8,
                                       height: 8,
-                                      margin: const EdgeInsets.only(top: 6, left: 8),
+                                      margin: const EdgeInsets.only(
+                                        top: 6,
+                                        left: 8,
+                                      ),
                                       decoration: const BoxDecoration(
-                                        color: AppColors.accent, 
+                                        color: AppColors.accent,
                                         shape: BoxShape.circle,
                                       ),
                                     ),
@@ -231,12 +310,20 @@ class NotificationsScreen extends ConsumerWidget {
 
     for (final n in items) {
       final d = n.createdAt as DateTime;
-      final isToday = d.year == now.year && d.month == now.month && d.day == now.day;
-      
-      final yesterday = now.subtract(const Duration(days: 1));
-      final isYesterday = d.year == yesterday.year && d.month == yesterday.month && d.day == yesterday.day;
+      final isToday =
+          d.year == now.year && d.month == now.month && d.day == now.day;
 
-      final key = isToday ? 'BUGÜN' : isYesterday ? 'DÜN' : 'DAHA ÖNCE';
+      final yesterday = now.subtract(const Duration(days: 1));
+      final isYesterday =
+          d.year == yesterday.year &&
+          d.month == yesterday.month &&
+          d.day == yesterday.day;
+
+      final key = isToday
+          ? 'BUGÜN'
+          : isYesterday
+          ? 'DÜN'
+          : 'DAHA ÖNCE';
       groups.putIfAbsent(key, () => []).add(n);
     }
     return groups;
@@ -246,16 +333,21 @@ class NotificationsScreen extends ConsumerWidget {
     final t = title.toLowerCase();
     if (t.contains('çözüldü')) return Icons.check_circle_outline;
     if (t.contains('personel')) return Icons.person_outline;
-    if (t.contains('güncellendi') || t.contains('inceleniyor')) return Icons.access_time;
-    if (t.contains('sistem') || t.contains('bakım')) return Icons.notifications_none;
+    if (t.contains('güncellendi') || t.contains('inceleniyor'))
+      return Icons.access_time;
+    if (t.contains('sistem') || t.contains('bakım'))
+      return Icons.notifications_none;
     return Icons.info_outline;
   }
 
   Color _getNotificationColor(String title, bool isDarkMode) {
     final t = title.toLowerCase();
-    if (t.contains('çözüldü')) return isDarkMode ? const Color(0xFF34D399) : const Color(0xFF085041);
-    if (t.contains('personel')) return isDarkMode ? const Color(0xFF94A3B8) : const Color(0xFF1E293B);
-    if (t.contains('güncellendi') || t.contains('inceleniyor')) return isDarkMode ? const Color(0xFFFBBF24) : const Color(0xFF854F0B);
+    if (t.contains('çözüldü'))
+      return isDarkMode ? const Color(0xFF34D399) : const Color(0xFF085041);
+    if (t.contains('personel'))
+      return isDarkMode ? const Color(0xFF94A3B8) : const Color(0xFF1E293B);
+    if (t.contains('güncellendi') || t.contains('inceleniyor'))
+      return isDarkMode ? const Color(0xFFFBBF24) : const Color(0xFF854F0B);
     return isDarkMode ? Colors.grey.shade400 : Colors.grey.shade600;
   }
 

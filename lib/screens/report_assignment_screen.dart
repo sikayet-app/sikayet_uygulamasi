@@ -5,6 +5,7 @@ import 'package:sikayet_uygulamasi/providers/report_provider.dart';
 import 'package:sikayet_uygulamasi/providers/auth_provider.dart';
 import '../widgets/app_card.dart';
 import '../core/report_ui_helpers.dart';
+import '../core/app_colors.dart';
 
 class ReportAssignmentScreen extends ConsumerWidget {
   const ReportAssignmentScreen({super.key});
@@ -12,12 +13,19 @@ class ReportAssignmentScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final reportAsync = ref.watch(reportListProvider);
+
+    // Ekrana girildiği an personelleri arka planda yükle (Önbellekleme).
+    // Böylece butona basıldığında bekleme yaşanmaz.
+    ref.watch(staffListProvider);
+
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
     final isDarkMode = theme.brightness == Brightness.dark;
 
     return Scaffold(
-      backgroundColor: isDarkMode ? colorScheme.surface : const Color(0xFFF5F4F0),
+      backgroundColor: isDarkMode
+          ? colorScheme.surface
+          : AppColors.surfaceWarmLight,
       appBar: AppBar(
         title: const Text('Şikayetler ve İş Atama'),
         centerTitle: true,
@@ -28,7 +36,11 @@ class ReportAssignmentScreen extends ConsumerWidget {
         error: (err, stack) => Center(child: Text('Hata: $err')),
         data: (reports) {
           final assignableReports = reports
-              .where((r) => r.status == ReportStatus.pending || r.status == ReportStatus.inProgress)
+              .where(
+                (r) =>
+                    r.status == ReportStatus.pending ||
+                    r.status == ReportStatus.inProgress,
+              )
               .toList();
 
           if (assignableReports.isEmpty) {
@@ -36,9 +48,16 @@ class ReportAssignmentScreen extends ConsumerWidget {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.assignment_turned_in_outlined, size: 64, color: colorScheme.outline),
+                  Icon(
+                    Icons.assignment_turned_in_outlined,
+                    size: 64,
+                    color: colorScheme.outline,
+                  ),
                   const SizedBox(height: 16),
-                  const Text('Atanacak yeni şikayet bulunmuyor.', style: TextStyle(fontSize: 16)),
+                  const Text(
+                    'Atanacak yeni şikayet bulunmuyor.',
+                    style: TextStyle(fontSize: 16),
+                  ),
                 ],
               ),
             );
@@ -49,9 +68,14 @@ class ReportAssignmentScreen extends ConsumerWidget {
             itemCount: assignableReports.length,
             itemBuilder: (context, index) {
               final report = assignableReports[index];
-              
-              final statusColor = colorForStatus(report.status, isDarkMode: isDarkMode);
-              final statusBgColor = getStatusBgColor(report.status, isDarkMode: isDarkMode);
+              final statusColor = colorForStatus(
+                report.status,
+                isDarkMode: isDarkMode,
+              );
+              final statusBgColor = getStatusBgColor(
+                report.status,
+                isDarkMode: isDarkMode,
+              );
 
               return Padding(
                 padding: const EdgeInsets.only(bottom: 16.0),
@@ -64,13 +88,18 @@ class ReportAssignmentScreen extends ConsumerWidget {
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 4,
+                            ),
                             decoration: BoxDecoration(
                               color: statusBgColor,
                               borderRadius: BorderRadius.circular(12),
                             ),
                             child: Text(
-                              report.status == ReportStatus.pending ? 'Bekliyor' : 'İşlemde',
+                              report.status == ReportStatus.pending
+                                  ? 'Bekliyor'
+                                  : 'İşlemde',
                               style: TextStyle(
                                 color: statusColor,
                                 fontWeight: FontWeight.bold,
@@ -79,8 +108,12 @@ class ReportAssignmentScreen extends ConsumerWidget {
                             ),
                           ),
                           Text(
-                            getFormattedDate(report.createdAt), 
-                            style: TextStyle(color: colorScheme.onSurfaceVariant, fontSize: 12, fontWeight: FontWeight.w500),
+                            getFormattedDate(report.createdAt),
+                            style: TextStyle(
+                              color: colorScheme.onSurfaceVariant,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w500,
+                            ),
                           ),
                         ],
                       ),
@@ -91,16 +124,24 @@ class ReportAssignmentScreen extends ConsumerWidget {
                           Container(
                             padding: const EdgeInsets.all(6),
                             decoration: BoxDecoration(
-                              color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+                              color: colorScheme.surfaceContainerHighest
+                                  .withValues(alpha: 0.5),
                               borderRadius: BorderRadius.circular(8),
                             ),
-                            child: Icon(getCategoryIcon(report.category), size: 18, color: colorScheme.onSurfaceVariant),
+                            child: Icon(
+                              getCategoryIcon(report.category),
+                              size: 18,
+                              color: colorScheme.onSurfaceVariant,
+                            ),
                           ),
                           const SizedBox(width: 12),
                           Expanded(
                             child: Text(
                               report.title,
-                              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                              style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
                           ),
                         ],
@@ -109,12 +150,19 @@ class ReportAssignmentScreen extends ConsumerWidget {
                       Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Icon(Icons.location_on_outlined, size: 16, color: colorScheme.outline),
+                          Icon(
+                            Icons.location_on_outlined,
+                            size: 16,
+                            color: colorScheme.outline,
+                          ),
                           const SizedBox(width: 4),
                           Expanded(
                             child: Text(
                               report.fullAddress ?? 'Adres belirtilmemiş',
-                              style: TextStyle(color: colorScheme.onSurfaceVariant, fontSize: 13),
+                              style: TextStyle(
+                                color: colorScheme.onSurfaceVariant,
+                                fontSize: 13,
+                              ),
                               maxLines: 2,
                               overflow: TextOverflow.ellipsis,
                             ),
@@ -122,22 +170,37 @@ class ReportAssignmentScreen extends ConsumerWidget {
                         ],
                       ),
                       const SizedBox(height: 16),
-                      Divider(color: colorScheme.outlineVariant.withValues(alpha: 0.5)),
+                      Divider(
+                        color: colorScheme.outlineVariant.withValues(
+                          alpha: 0.5,
+                        ),
+                      ),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text('SORUMLU PERSONEL', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: colorScheme.outline, letterSpacing: 0.5)),
+                              Text(
+                                'SORUMLU PERSONEL',
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                  color: colorScheme.outline,
+                                  letterSpacing: 0.5,
+                                ),
+                              ),
                               const SizedBox(height: 4),
                               Text(
                                 report.assignedStaffName ?? 'Henüz atanmadı',
                                 style: TextStyle(
                                   fontWeight: FontWeight.bold,
                                   fontSize: 13,
-                                  color: report.assignedStaffName == null 
-                                      ? colorForStatus(ReportStatus.rejected, isDarkMode: isDarkMode) 
+                                  color: report.assignedStaffName == null
+                                      ? colorForStatus(
+                                          ReportStatus.rejected,
+                                          isDarkMode: isDarkMode,
+                                        )
                                       : colorScheme.onSurface,
                                 ),
                               ),
@@ -145,16 +208,36 @@ class ReportAssignmentScreen extends ConsumerWidget {
                           ),
                           ElevatedButton.icon(
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: colorScheme.primary, 
+                              backgroundColor: colorScheme.primary,
                               foregroundColor: colorScheme.onPrimary,
                               elevation: 0,
-                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 8,
+                              ),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
                             ),
-                            icon: Icon(report.status == ReportStatus.pending ? Icons.person_add_alt_1 : Icons.edit, size: 18),
-                            label: Text(report.status == ReportStatus.pending ? 'Personel Ata' : 'Güncelle'),
+                            icon: Icon(
+                              report.status == ReportStatus.pending
+                                  ? Icons.person_add_alt_1
+                                  : Icons.edit,
+                              size: 18,
+                            ),
+                            label: Text(
+                              report.status == ReportStatus.pending
+                                  ? 'Personel Ata'
+                                  : 'Güncelle',
+                            ),
                             onPressed: () {
-                              _showStaffSelectionSheet(context, ref, report, colorScheme, isDarkMode);
+                              _showStaffSelectionSheet(
+                                context,
+                                ref,
+                                report,
+                                colorScheme,
+                                isDarkMode,
+                              );
                             },
                           ),
                         ],
@@ -170,8 +253,13 @@ class ReportAssignmentScreen extends ConsumerWidget {
     );
   }
 
-  // Eksik olan metodu buraya ekledik
-  void _showStaffSelectionSheet(BuildContext context, WidgetRef ref, Report report, ColorScheme colorScheme, bool isDarkMode) {
+  void _showStaffSelectionSheet(
+    BuildContext context,
+    WidgetRef ref,
+    Report report,
+    ColorScheme colorScheme,
+    bool isDarkMode,
+  ) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -185,8 +273,7 @@ class ReportAssignmentScreen extends ConsumerWidget {
         maxChildSize: 0.9,
         expand: false,
         builder: (context, scrollController) {
-          final staffAsync = ref.watch(staffListProvider); 
-          
+          final staffAsync = ref.watch(staffListProvider);
           return Column(
             children: [
               const SizedBox(height: 12),
@@ -201,77 +288,109 @@ class ReportAssignmentScreen extends ConsumerWidget {
               Padding(
                 padding: const EdgeInsets.all(20.0),
                 child: Text(
-                  report.assignedStaffId == null ? 'Personel Ata' : 'Personeli Güncelle', 
-                  style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                  report.assignedStaffId == null
+                      ? 'Personel Ata'
+                      : 'Personeli Güncelle',
+                  style: const TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ),
               Expanded(
                 child: staffAsync.when(
-                  loading: () => const Center(child: CircularProgressIndicator()),
+                  loading: () =>
+                      const Center(child: CircularProgressIndicator()),
                   error: (err, stack) => Center(child: Text('Hata: $err')),
                   data: (staffList) {
                     if (staffList.isEmpty) {
-                      return const Center(child: Text('Sistemde kayıtlı personel bulunamadı.'));
+                      return const Center(
+                        child: Text('Sistemde kayıtlı personel bulunamadı.'),
+                      );
                     }
                     return ListView.builder(
                       controller: scrollController,
                       itemCount: staffList.length,
                       itemBuilder: (context, index) {
                         final staff = staffList[index];
-                        final isCurrentlyAssigned = report.assignedStaffId == staff.id;
+                        final isCurrentlyAssigned =
+                            report.assignedStaffId == staff.id;
 
                         return ListTile(
                           leading: CircleAvatar(
-                            backgroundColor: isCurrentlyAssigned ? colorScheme.primary : colorScheme.primaryContainer,
+                            backgroundColor: isCurrentlyAssigned
+                                ? colorScheme.primary
+                                : colorScheme.primaryContainer,
                             child: Text(
-                              getInitials(staff.name), 
+                              getInitials(staff.name),
                               style: TextStyle(
-                                color: isCurrentlyAssigned ? colorScheme.onPrimary : colorScheme.onPrimaryContainer, 
-                                fontWeight: FontWeight.bold
+                                color: isCurrentlyAssigned
+                                    ? colorScheme.onPrimary
+                                    : colorScheme.onPrimaryContainer,
+                                fontWeight: FontWeight.bold,
                               ),
                             ),
                           ),
                           title: Text(
-                            staff.name, 
+                            staff.name,
                             style: TextStyle(
                               fontWeight: FontWeight.bold,
-                              color: isCurrentlyAssigned ? colorScheme.primary : null,
+                              color: isCurrentlyAssigned
+                                  ? colorScheme.primary
+                                  : null,
                             ),
                           ),
                           subtitle: Text(staff.email),
-                          trailing: isCurrentlyAssigned 
-                              ? Icon(Icons.check_circle, color: colorScheme.primary)
+                          trailing: isCurrentlyAssigned
+                              ? Icon(
+                                  Icons.check_circle,
+                                  color: colorScheme.primary,
+                                )
                               : const Icon(Icons.chevron_right),
-                          onTap: isCurrentlyAssigned ? null : () async {
-                            try {
-                              if (report.assignedStaffId == null) {
-                                await ref.read(reportRepositoryProvider).assignReport(report.id, staff.id);
-                              } else {
-                                await ref.read(reportRepositoryProvider).updateAssignedStaff(report.id, staff.id);
-                              }
-
-                              ref.invalidate(reportListProvider);
-                              
-                              if (context.mounted) {
-                                Navigator.pop(context); 
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text('${staff.name} başarıyla atandı.'),
-                                    backgroundColor: Colors.green.shade700,
-                                  ),
-                                );
-                              }
-                            } catch (e) {
-                              if (context.mounted) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text('Atama yapılamadı: $e'),
-                                    backgroundColor: colorScheme.error,
-                                  ),
-                                );
-                              }
-                            }
-                          },
+                          onTap: isCurrentlyAssigned
+                              ? null
+                              : () async {
+                                  try {
+                                    if (report.assignedStaffId == null) {
+                                      await ref
+                                          .read(reportRepositoryProvider)
+                                          .assignReport(report.id, staff.id);
+                                    } else {
+                                      await ref
+                                          .read(reportRepositoryProvider)
+                                          .updateAssignedStaff(
+                                            report.id,
+                                            staff.id,
+                                          );
+                                    }
+                                    ref.invalidate(reportListProvider);
+                                    if (context.mounted) {
+                                      Navigator.pop(context);
+                                      ScaffoldMessenger.of(
+                                        context,
+                                      ).showSnackBar(
+                                        SnackBar(
+                                          content: Text(
+                                            '${staff.name} başarıyla atandı.',
+                                          ),
+                                          backgroundColor:
+                                              Colors.green.shade700,
+                                        ),
+                                      );
+                                    }
+                                  } catch (e) {
+                                    if (context.mounted) {
+                                      ScaffoldMessenger.of(
+                                        context,
+                                      ).showSnackBar(
+                                        SnackBar(
+                                          content: Text('Atama yapılamadı: $e'),
+                                          backgroundColor: colorScheme.error,
+                                        ),
+                                      );
+                                    }
+                                  }
+                                },
                         );
                       },
                     );

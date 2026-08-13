@@ -12,6 +12,8 @@ final reportRepositoryProvider = Provider<ReportRepository>((ref) {
   return ApiReportRepository();
 });
 
+// api den veri çeken provider
+// bu provider tüm kayıtları çeker ve filtrelere asla bağımlı değil
 final reportListProvider = FutureProvider.autoDispose<List<Report>>((
   ref,
 ) async {
@@ -20,13 +22,7 @@ final reportListProvider = FutureProvider.autoDispose<List<Report>>((
     return [];
   }
   final repository = ref.watch(reportRepositoryProvider);
-
-  final selectedStatus = ref.watch(filterStatusProvider);
-  final selectedCategory = ref.watch(filterCategoryProvider);
-  return repository.getReports(
-    status: selectedStatus?.name,
-    category: selectedCategory?.name,
-  );
+  return repository.getReports();
 });
 
 final filterCategoryProvider = StateProvider.autoDispose<ReportCategory?>(
@@ -40,25 +36,24 @@ final sortProvider = StateProvider.autoDispose<SortOrder>(
   (ref) => SortOrder.newest,
 );
 
-final filteredReportListProvider = Provider<AsyncValue<List<Report>>>((ref) {
-  final reportAsync = ref.watch(reportListProvider);
-  final selectedCategory = ref.watch(filterCategoryProvider);
+// liste ekranı için filtreli
+final filteredReportListProvider = FutureProvider.autoDispose<List<Report>>((
+  ref,
+) async {
+  final user = ref.watch(currentUserProvider);
+  if (user == null) return [];
+
+  final repository = ref.watch(reportRepositoryProvider);
   final selectedStatus = ref.watch(filterStatusProvider);
-  final currentSort = ref.watch(sortProvider);
-  return reportAsync.whenData((reports) {
-    var filtered = List<Report>.from(reports);
-    if (selectedCategory != null) {
-      filtered = filtered.where((r) => r.category == selectedCategory).toList();
-    }
-    filtered.sort(
-      (a, b) => currentSort == SortOrder.newest
-          ? b.createdAt.compareTo(a.createdAt)
-          : a.createdAt.compareTo(b.createdAt),
-    );
-    return filtered;
-  });
+  final selectedCategory = ref.watch(filterCategoryProvider);
+
+  return repository.getReports(
+    status: selectedStatus?.name,
+    category: selectedCategory?.name,
+  );
 });
 
+// haritada anlık arama için
 final mapSearchQueryProvider = StateProvider.autoDispose<String>((ref) => '');
 
 final mapSearchResultsProvider = Provider.autoDispose<List<Report>>((ref) {
@@ -68,8 +63,11 @@ final mapSearchResultsProvider = Provider.autoDispose<List<Report>>((ref) {
   if (query.isEmpty) return [];
 
   // Hem başlıkta hem de adreste arama yapar, ilk 5 sonucu döndürür
-  return reports.where((r) {
-    return r.title.toLowerCase().contains(query) || 
-           (r.fullAddress?.toLowerCase().contains(query) ?? false);
-  }).take(5).toList();
+  return reports
+      .where((r) {
+        return r.title.toLowerCase().contains(query) ||
+            (r.fullAddress?.toLowerCase().contains(query) ?? false);
+      })
+      .take(5)
+      .toList();
 });

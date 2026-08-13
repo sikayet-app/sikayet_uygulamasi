@@ -4,18 +4,24 @@ import 'package:sikayet_uygulamasi/core/theme_service.dart';
 import 'package:sikayet_uygulamasi/data/models/report.dart';
 import 'package:sikayet_uygulamasi/providers/auth_provider.dart';
 import 'package:sikayet_uygulamasi/providers/report_provider.dart';
+import 'package:sikayet_uygulamasi/screens/edit_profile_screen.dart';
 import 'login_screen.dart';
 import '../data/models/user.dart';
 import '../providers/theme_provider.dart';
-import '../core/app_colors.dart';         // YENİ: Renk merkezimiz eklendi
-import '../core/report_ui_helpers.dart';  // YENİ: getInitials ve renk fonksiyonları eklendi
-import '../widgets/app_card.dart';        // YENİ: Modüler kart eklendi
+import '../core/app_colors.dart';
+import '../core/report_ui_helpers.dart';
+import '../widgets/app_card.dart';
 
-class ProfileScreen extends ConsumerWidget {
+class ProfileScreen extends ConsumerStatefulWidget {
   const ProfileScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<ProfileScreen> createState() => _ProfileScreenState();
+}
+
+class _ProfileScreenState extends ConsumerState<ProfileScreen> {
+  @override
+  Widget build(BuildContext context) {
     final user = ref.watch(currentUserProvider);
     final currentTheme = ref.watch(themeModeProvider);
     final reportAsync = ref.watch(reportListProvider);
@@ -23,7 +29,6 @@ class ProfileScreen extends ConsumerWidget {
     final colorScheme = theme.colorScheme;
     final isDarkMode = theme.brightness == Brightness.dark;
 
-    // eğer user henüz yüklenmediyse boş dön
     if (user == null) {
       return Scaffold(
         backgroundColor: colorScheme.surface,
@@ -34,34 +39,51 @@ class ProfileScreen extends ConsumerWidget {
     }
 
     int totalReports = 0;
-    int stat2 = 0; // çözüldü (vatndaş) veya tamamlanan(personel)
-    int stat3 = 0; // bekliyor (vatandaş) veya işlemde(personel)
+    int stat2 = 0;
+    int stat3 = 0;
 
     reportAsync.whenData((reports) {
       if (user.role == UserRole.citizen) {
         final myReports = reports.where((r) => r.userId == user.id).toList();
         totalReports = myReports.length;
-        stat2 = myReports.where((r) => r.status == ReportStatus.resolved).length;
+        stat2 = myReports
+            .where((r) => r.status == ReportStatus.resolved)
+            .length;
         stat3 = myReports
-            .where((r) => r.status == ReportStatus.pending || r.status == ReportStatus.inProgress)
+            .where(
+              (r) =>
+                  r.status == ReportStatus.pending ||
+                  r.status == ReportStatus.inProgress,
+            )
             .length;
       } else if (user.role == UserRole.staff) {
-        final assignedReports = reports.where((r) => r.assignedStaffId == user.id).toList();
+        final assignedReports = reports
+            .where((r) => r.assignedStaffId == user.id)
+            .toList();
         totalReports = assignedReports.length;
         stat2 = assignedReports
-            .where((r) => r.status == ReportStatus.resolved || r.status == ReportStatus.rejected || r.status == ReportStatus.invalid)
+            .where(
+              (r) =>
+                  r.status == ReportStatus.resolved ||
+                  r.status == ReportStatus.rejected ||
+                  r.status == ReportStatus.invalid,
+            )
             .length;
-        stat3 = assignedReports.where((r) => r.status == ReportStatus.inProgress).length;
+        stat3 = assignedReports
+            .where((r) => r.status == ReportStatus.inProgress)
+            .length;
       }
     });
 
     return Scaffold(
-      backgroundColor: isDarkMode ? colorScheme.surface : AppColors.surfaceWarmLight, // DÜZELTİLDİ
+      backgroundColor: isDarkMode
+          ? colorScheme.surface
+          : AppColors.surfaceWarmLight,
       body: SingleChildScrollView(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            //  PROFiL KARTI (HEADER)
+            // PROFiL KARTI
             Stack(
               clipBehavior: Clip.none,
               alignment: Alignment.bottomCenter,
@@ -75,7 +97,7 @@ class ProfileScreen extends ConsumerWidget {
                     right: 16,
                   ),
                   decoration: const BoxDecoration(
-                    color: AppColors.navy, // DÜZELTİLDİ
+                    color: AppColors.navy,
                     borderRadius: BorderRadius.only(
                       bottomLeft: Radius.circular(32),
                       bottomRight: Radius.circular(32),
@@ -83,7 +105,6 @@ class ProfileScreen extends ConsumerWidget {
                   ),
                   child: Column(
                     children: [
-                      // Avatar
                       Container(
                         width: 96,
                         height: 96,
@@ -93,11 +114,10 @@ class ProfileScreen extends ConsumerWidget {
                             color: Colors.white.withValues(alpha: 0.2),
                             width: 2,
                           ),
-                          color: Colors.transparent,
                         ),
                         child: Center(
                           child: Text(
-                            getInitials(user.name), // Helper'dan geliyor
+                            getInitials(user.name),
                             style: const TextStyle(
                               color: Colors.white,
                               fontSize: 32,
@@ -116,9 +136,11 @@ class ProfileScreen extends ConsumerWidget {
                         ),
                       ),
                       const SizedBox(height: 8),
-                      // Rol Rozeti
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 6,
+                        ),
                         decoration: BoxDecoration(
                           color: Colors.white.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(20),
@@ -126,7 +148,7 @@ class ProfileScreen extends ConsumerWidget {
                         child: Text(
                           getRoleLabel(user.role),
                           style: const TextStyle(
-                            color: AppColors.accent, // DÜZELTİLDİ
+                            color: AppColors.accent,
                             fontWeight: FontWeight.bold,
                             fontSize: 12,
                           ),
@@ -135,9 +157,8 @@ class ProfileScreen extends ConsumerWidget {
                     ],
                   ),
                 ),
-
-                // istatistik kartları
-                if (user.role == UserRole.citizen || user.role == UserRole.staff) ...[
+                if (user.role == UserRole.citizen ||
+                    user.role == UserRole.staff) ...[
                   Positioned(
                     bottom: -40,
                     child: Row(
@@ -150,15 +171,25 @@ class ProfileScreen extends ConsumerWidget {
                         ),
                         const SizedBox(width: 12),
                         _buildStatCard(
-                          user.role == UserRole.staff ? 'Tamamlanan' : 'Çözüldü',
+                          user.role == UserRole.staff
+                              ? 'Tamamlanan'
+                              : 'Çözüldü',
                           stat2.toString(),
-                          colorForStatus(ReportStatus.resolved, isDarkMode: isDarkMode), // DÜZELTİLDİ
+                          colorForStatus(
+                            ReportStatus.resolved,
+                            isDarkMode: isDarkMode,
+                          ),
                         ),
                         const SizedBox(width: 12),
                         _buildStatCard(
                           user.role == UserRole.staff ? 'Sahada' : 'Bekliyor',
                           stat3.toString(),
-                          colorForStatus(user.role == UserRole.staff ? ReportStatus.inProgress : ReportStatus.pending, isDarkMode: isDarkMode), // DÜZELTİLDİ
+                          colorForStatus(
+                            user.role == UserRole.staff
+                                ? ReportStatus.inProgress
+                                : ReportStatus.pending,
+                            isDarkMode: isDarkMode,
+                          ),
                         ),
                       ],
                     ),
@@ -166,15 +197,12 @@ class ProfileScreen extends ConsumerWidget {
                 ],
               ],
             ),
-            const SizedBox(height: 64), // kartların taşma payı
-
-            // modüler menüler
+            const SizedBox(height: 64),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20.0),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // HESAP BÖLÜMÜ
                   _buildSectionHeader('HESAP', colorScheme),
                   _buildMenuGroup(
                     children: [
@@ -182,44 +210,39 @@ class ProfileScreen extends ConsumerWidget {
                         icon: Icons.person_outline,
                         title: 'Kişisel Bilgiler',
                         showChevron: true,
-                        onTap: () {},
-                      ),
-                      _buildDivider(isDarkMode, colorScheme),
-                      _buildMenuTile(
-                        icon: Icons.phone_outlined,
-                        title: user.phoneNumber != null && user.phoneNumber!.isNotEmpty ? user.phoneNumber! : 'Telefon Ekle',
-                        showChevron: true,
-                        onTap: () {},
+                        isDarkMode: isDarkMode,
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const EditProfileScreen(),
+                            ),
+                          );
+                        },
                       ),
                     ],
                   ),
                   const SizedBox(height: 24),
 
-                  // tercihler bölümü
                   _buildSectionHeader('TERCİHLER', colorScheme),
                   _buildMenuGroup(
                     children: [
                       _buildMenuTile(
-                        icon: Icons.notifications_none,
-                        title: 'Bildirimler',
-                        trailing: Switch(
-                          value: true,
-                          activeColor: Colors.white,
-                          activeTrackColor: AppColors.navy, // DÜZELTİLDİ
-                          onChanged: (val) {},
-                        ),
-                      ),
-                      _buildDivider(isDarkMode, colorScheme),
-                      _buildMenuTile(
                         icon: Icons.dark_mode_outlined,
                         title: 'Karanlık Mod',
+                        isDarkMode: isDarkMode,
                         trailing: Switch(
                           value: currentTheme == ThemeMode.dark,
                           activeColor: Colors.white,
-                          activeTrackColor: AppColors.navy, // DÜZELTİLDİ
+                          activeTrackColor: isDarkMode
+                              ? colorScheme.primary
+                              : AppColors.navy,
                           onChanged: (isDark) {
-                            final newTheme = isDark ? ThemeMode.dark : ThemeMode.light;
-                            ref.read(themeModeProvider.notifier).state = newTheme;
+                            final newTheme = isDark
+                                ? ThemeMode.dark
+                                : ThemeMode.light;
+                            ref.read(themeModeProvider.notifier).state =
+                                newTheme;
                             ThemeService().saveThemeMode(newTheme);
                           },
                         ),
@@ -228,7 +251,6 @@ class ProfileScreen extends ConsumerWidget {
                   ),
                   const SizedBox(height: 24),
 
-                  // diğer bölümü
                   _buildSectionHeader('DİĞER', colorScheme),
                   _buildMenuGroup(
                     children: [
@@ -236,7 +258,12 @@ class ProfileScreen extends ConsumerWidget {
                         icon: Icons.help_outline,
                         title: 'Yardım ve Destek',
                         showChevron: true,
-                        onTap: () => _showHelpSupportSheet(context, colorScheme, isDarkMode),
+                        isDarkMode: isDarkMode,
+                        onTap: () => _showHelpSupportSheet(
+                          context,
+                          colorScheme,
+                          isDarkMode,
+                        ),
                       ),
                       _buildDivider(isDarkMode, colorScheme),
                       _buildMenuTile(
@@ -244,11 +271,13 @@ class ProfileScreen extends ConsumerWidget {
                         title: 'Çıkış Yap',
                         titleColor: Colors.red.shade700,
                         iconColor: Colors.red.shade700,
-                        onTap: () => _showLogoutDialog(context, ref, colorScheme),
+                        isDarkMode: isDarkMode,
+                        onTap: () =>
+                            _showLogoutDialog(context, ref, colorScheme),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 40),
+                  const SizedBox(height: 120),
                 ],
               ),
             ),
@@ -258,9 +287,6 @@ class ProfileScreen extends ConsumerWidget {
     );
   }
 
-  // yardımcı metotlar
-
-  // üçlü istatistik kartı (AppCard'a geçirildi)
   Widget _buildStatCard(String title, String value, Color valueColor) {
     return SizedBox(
       width: 100,
@@ -291,7 +317,6 @@ class ProfileScreen extends ConsumerWidget {
     );
   }
 
-  // bölüm başlığı
   Widget _buildSectionHeader(String title, ColorScheme colorScheme) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 12.0, left: 4.0),
@@ -307,7 +332,6 @@ class ProfileScreen extends ConsumerWidget {
     );
   }
 
-  // beyaz modüler kutu (AppCard'a geçirildi)
   Widget _buildMenuGroup({required List<Widget> children}) {
     return AppCard(
       padding: EdgeInsets.zero,
@@ -315,10 +339,10 @@ class ProfileScreen extends ConsumerWidget {
     );
   }
 
-  // menü elemanı
   Widget _buildMenuTile({
     required IconData icon,
     required String title,
+    required bool isDarkMode,
     Color? titleColor,
     Color? iconColor,
     bool showChevron = false,
@@ -327,7 +351,10 @@ class ProfileScreen extends ConsumerWidget {
   }) {
     return ListTile(
       contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
-      leading: Icon(icon, color: iconColor ?? AppColors.navy), // DÜZELTİLDİ
+      leading: Icon(
+        icon,
+        color: iconColor ?? (isDarkMode ? Colors.white70 : AppColors.navy),
+      ),
       title: Text(
         title,
         style: TextStyle(
@@ -336,12 +363,15 @@ class ProfileScreen extends ConsumerWidget {
           color: titleColor,
         ),
       ),
-      trailing: trailing ?? (showChevron ? const Icon(Icons.chevron_right, color: Colors.grey, size: 20) : null),
+      trailing:
+          trailing ??
+          (showChevron
+              ? const Icon(Icons.chevron_right, color: Colors.grey, size: 20)
+              : null),
       onTap: onTap,
     );
   }
 
-  // menü arası çizgi
   Widget _buildDivider(bool isDarkMode, ColorScheme colorScheme) {
     return Divider(
       height: 1,
@@ -352,13 +382,18 @@ class ProfileScreen extends ConsumerWidget {
     );
   }
 
-  // çıkış yap diyaloğu
-  Future<void> _showLogoutDialog(BuildContext context, WidgetRef ref, ColorScheme colorScheme) async {
+  Future<void> _showLogoutDialog(
+    BuildContext context,
+    WidgetRef ref,
+    ColorScheme colorScheme,
+  ) async {
     final bool? confirm = await showDialog<bool>(
       context: context,
       builder: (BuildContext dialogContext) {
         return AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
           title: Row(
             children: [
               Icon(Icons.warning_amber_rounded, color: Colors.red.shade700),
@@ -366,14 +401,18 @@ class ProfileScreen extends ConsumerWidget {
               const Text('Çıkış Yap'),
             ],
           ),
-          content: const Text('Hesabınızdan çıkış yapmak istediğinize emin misiniz?'),
+          content: const Text(
+            'Hesabınızdan çıkış yapmak istediğinize emin misiniz?',
+          ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(dialogContext, false),
               child: const Text('İptal', style: TextStyle(color: Colors.grey)),
             ),
             FilledButton(
-              style: FilledButton.styleFrom(backgroundColor: Colors.red.shade700),
+              style: FilledButton.styleFrom(
+                backgroundColor: Colors.red.shade700,
+              ),
               onPressed: () => Navigator.pop(dialogContext, true),
               child: const Text('Çıkış'),
             ),
@@ -397,8 +436,11 @@ class ProfileScreen extends ConsumerWidget {
     }
   }
 
-  // yardım ve destek
-  void _showHelpSupportSheet(BuildContext context, ColorScheme colorScheme, bool isDarkMode) {
+  void _showHelpSupportSheet(
+    BuildContext context,
+    ColorScheme colorScheme,
+    bool isDarkMode,
+  ) {
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
@@ -413,7 +455,6 @@ class ProfileScreen extends ConsumerWidget {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Kaydırma Çubuğu (Drag Handle)
               Center(
                 child: Container(
                   width: 40,
@@ -438,17 +479,15 @@ class ProfileScreen extends ConsumerWidget {
               _buildMenuTile(
                 icon: Icons.email_outlined,
                 title: 'destek@belediye.gov.tr',
-                onTap: () {
-                  Navigator.pop(context);
-                },
+                isDarkMode: isDarkMode,
+                onTap: () => Navigator.pop(context),
               ),
               _buildDivider(isDarkMode, colorScheme),
               _buildMenuTile(
                 icon: Icons.phone_in_talk_outlined,
                 title: 'Alo 153 Çözüm Merkezi',
-                onTap: () {
-                  Navigator.pop(context);
-                },
+                isDarkMode: isDarkMode,
+                onTap: () => Navigator.pop(context),
               ),
             ],
           ),
@@ -456,6 +495,4 @@ class ProfileScreen extends ConsumerWidget {
       ),
     );
   }
-
-  void _showEditProfileSheet(context, ref, user) {}
 }

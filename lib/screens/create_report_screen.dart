@@ -15,7 +15,7 @@ import 'package:path/path.dart' as path;
 import 'package:path_provider/path_provider.dart';
 import 'package:geocoding/geocoding.dart';
 import '../core/report_ui_helpers.dart';
-import '../core/app_colors.dart'; // YENİ: Merkezi renk dosyamız eklendi
+import '../core/app_colors.dart';
 import 'dart:convert';
 
 class CreateReportScreen extends ConsumerStatefulWidget {

@@ -8,7 +8,7 @@ import '../data/models/report.dart';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import '../data/models/user.dart';
-import '../core/app_colors.dart'; // YENİ: Merkezi renk dosyamız
+import '../core/app_colors.dart';
 
 class ReportDetailScreen extends ConsumerStatefulWidget {
   final Report report;
@@ -21,7 +21,7 @@ class ReportDetailScreen extends ConsumerStatefulWidget {
 
 class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
   late Report _currentReport;
-  int _currentImageIndex = 0; // Çoklu görsel takibi için
+  int _currentImageIndex = 0;
 
   @override
   void initState() {
@@ -157,13 +157,17 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
 
   Widget _buildImmersiveHeader(ColorScheme colorScheme, bool isDarkMode) {
     final hasImage = _currentReport.imagePaths.isNotEmpty;
-    // Eğer görsel yoksa yazılar siyah kalsın (açık modda)
-    final textColor = (hasImage || isDarkMode) ? Colors.white : colorScheme.onSurface;
-    final subtitleColor = (hasImage || isDarkMode) ? Colors.white70 : colorScheme.onSurfaceVariant;
+    // Eğer görsel yoksa yazılar siyah kalsın
+    final textColor = (hasImage || isDarkMode)
+        ? Colors.white
+        : colorScheme.onSurface;
+    final subtitleColor = (hasImage || isDarkMode)
+        ? Colors.white70
+        : colorScheme.onSurfaceVariant;
 
     return Stack(
       children: [
-        // Arka plan görseli (Çoklu görsel desteği ile)
+        // Arka plan görseli
         Container(
           height: 380,
           width: double.infinity,
@@ -206,7 +210,7 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
         // Çoklu görsel göstergesi (Badge)
         if (hasImage && _currentReport.imagePaths.length > 1)
           Positioned(
-            top: 100, // AppBar'ın altına denk gelmesi için
+            top: 100,
             right: 16,
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
@@ -216,7 +220,11 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
               ),
               child: Text(
                 '${_currentImageIndex + 1}/${_currentReport.imagePaths.length}',
-                style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ),
           ),
@@ -233,9 +241,14 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
               Row(
                 children: [
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 6,
+                    ),
                     decoration: BoxDecoration(
-                      color: hasImage ? Colors.white.withValues(alpha: 0.2) : colorScheme.surfaceContainer,
+                      color: hasImage
+                          ? Colors.white.withValues(alpha: 0.2)
+                          : colorScheme.surfaceContainer,
                       borderRadius: BorderRadius.circular(20),
                     ),
                     child: Text(
@@ -249,9 +262,15 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
                   ),
                   const SizedBox(width: 8),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 6,
+                    ),
                     decoration: BoxDecoration(
-                      color: colorForStatus(_currentReport.status, isDarkMode: isDarkMode),
+                      color: colorForStatus(
+                        _currentReport.status,
+                        isDarkMode: isDarkMode,
+                      ),
                       borderRadius: BorderRadius.circular(20),
                     ),
                     child: Text(
@@ -266,7 +285,7 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
                 ],
               ),
               const SizedBox(height: 12),
-              // Başlık (Taşma korumalı)
+              // Başlık
               Text(
                 _currentReport.title,
                 maxLines: 2,
@@ -299,11 +318,13 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
 
   // Dikey zaman çizelgesi süreç geçmişi
   Widget _buildVerticalTimeline(ColorScheme colorScheme, bool isDarkMode) {
-    bool isInProgress = _currentReport.status == ReportStatus.inProgress ||
+    bool isInProgress =
+        _currentReport.status == ReportStatus.inProgress ||
         _currentReport.status == ReportStatus.resolved ||
         _currentReport.status == ReportStatus.rejected ||
         _currentReport.status == ReportStatus.invalid;
-    bool isFinished = _currentReport.status == ReportStatus.resolved ||
+    bool isFinished =
+        _currentReport.status == ReportStatus.resolved ||
         _currentReport.status == ReportStatus.rejected ||
         _currentReport.status == ReportStatus.invalid;
 
@@ -317,10 +338,11 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
           _buildTimelineStep(
             colorScheme: colorScheme,
             title: 'Bildirildi',
-            subtitle: '${_currentReport.senderName ?? "Bilinmiyor"} - ${getFormattedDate(_currentReport.createdAt)}',
+            subtitle:
+                '${_currentReport.senderName ?? "Bilinmiyor"} - ${getFormattedDate(_currentReport.createdAt)}',
             isActive: true,
             isLast: _currentReport.assignedStaffId == null && !isInProgress,
-            iconColor: colorScheme.primary, // Sabit renk yerine temaya uygun renk
+            iconColor: colorScheme.primary,
           ),
           if (_currentReport.assignedStaffId != null)
             _buildTimelineStep(
@@ -338,7 +360,12 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
               subtitle: isFinished ? 'Süreç tamamlandı' : 'Şu an devam ediyor',
               isActive: true,
               isLast: !isFinished,
-              iconColor: isFinished ? colorScheme.primary : colorForStatus(ReportStatus.inProgress, isDarkMode: isDarkMode),
+              iconColor: isFinished
+                  ? colorScheme.primary
+                  : colorForStatus(
+                      ReportStatus.inProgress,
+                      isDarkMode: isDarkMode,
+                    ),
             ),
           if (isFinished)
             _buildTimelineStep(
@@ -347,7 +374,10 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
               subtitle: 'Talep sonuçlandırıldı',
               isActive: true,
               isLast: true,
-              iconColor: colorForStatus(_currentReport.status, isDarkMode: isDarkMode),
+              iconColor: colorForStatus(
+                _currentReport.status,
+                isDarkMode: isDarkMode,
+              ),
             ),
         ],
       ),
@@ -428,10 +458,16 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
       padding: const EdgeInsets.all(20),
       margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
-        color: backgroundColor ?? (isDarkMode ? colorScheme.surfaceContainer : Colors.white),
+        color:
+            backgroundColor ??
+            (isDarkMode ? colorScheme.surfaceContainer : Colors.white),
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
-          color: borderColor ?? (isDarkMode ? colorScheme.outline.withValues(alpha: 0.15) : Colors.black.withValues(alpha: 0.05)),
+          color:
+              borderColor ??
+              (isDarkMode
+                  ? colorScheme.outline.withValues(alpha: 0.15)
+                  : Colors.black.withValues(alpha: 0.05)),
         ),
         boxShadow: isDarkMode || backgroundColor != null
             ? []
@@ -467,11 +503,13 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
     final currentUser = ref.watch(currentUserProvider);
     if (currentUser == null) return const SizedBox.shrink();
 
-    final canAssignStaff = currentUser.permissions.contains('assign_staff') ||
+    final canAssignStaff =
+        currentUser.permissions.contains('assign_staff') ||
         currentUser.role == UserRole.admin ||
         currentUser.role == UserRole.managing;
 
-    final canUpdateStatusPermission = currentUser.permissions.contains('update_report_status') ||
+    final canUpdateStatusPermission =
+        currentUser.permissions.contains('update_report_status') ||
         currentUser.role == UserRole.admin ||
         currentUser.role == UserRole.managing ||
         currentUser.role == UserRole.staff;
@@ -486,7 +524,9 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
     final canAssign = canAssignStaff;
 
     return Scaffold(
-      backgroundColor: isDarkMode ? colorScheme.surface : AppColors.surfaceWarmLight,
+      backgroundColor: isDarkMode
+          ? colorScheme.surface
+          : AppColors.surfaceWarmLight,
       extendBodyBehindAppBar: true,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
@@ -496,7 +536,11 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
           child: CircleAvatar(
             backgroundColor: colorScheme.surface,
             child: IconButton(
-              icon: Icon(Icons.arrow_back, color: colorScheme.onSurface, size: 20),
+              icon: Icon(
+                Icons.arrow_back,
+                color: colorScheme.onSurface,
+                size: 20,
+              ),
               onPressed: () => Navigator.pop(context),
             ),
           ),
@@ -504,7 +548,10 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
         actions: [
           if (canEdit)
             Padding(
-              padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 4.0),
+              padding: const EdgeInsets.symmetric(
+                vertical: 8.0,
+                horizontal: 4.0,
+              ),
               child: CircleAvatar(
                 backgroundColor: colorScheme.surface,
                 child: IconButton(
@@ -512,7 +559,8 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
                     final updated = await Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (context) => CreateReportScreen(existingReport: _currentReport),
+                        builder: (context) =>
+                            CreateReportScreen(existingReport: _currentReport),
                       ),
                     );
                     if (updated != null && updated is Report) {
@@ -521,18 +569,31 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
                       });
                     }
                   },
-                  icon: Icon(Icons.edit_outlined, color: colorScheme.onSurface, size: 20),
+                  icon: Icon(
+                    Icons.edit_outlined,
+                    color: colorScheme.onSurface,
+                    size: 20,
+                  ),
                 ),
               ),
             ),
           if (canDelete)
             Padding(
-              padding: const EdgeInsets.only(top: 8.0, bottom: 8.0, right: 12.0, left: 4.0),
+              padding: const EdgeInsets.only(
+                top: 8.0,
+                bottom: 8.0,
+                right: 12.0,
+                left: 4.0,
+              ),
               child: CircleAvatar(
                 backgroundColor: colorScheme.surface,
                 child: IconButton(
                   onPressed: () => _confirmAndDelete(context, ref),
-                  icon: Icon(Icons.delete_outline, color: colorScheme.error, size: 20),
+                  icon: Icon(
+                    Icons.delete_outline,
+                    color: colorScheme.error,
+                    size: 20,
+                  ),
                 ),
               ),
             ),
@@ -541,7 +602,10 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
       bottomNavigationBar: canChangeStatus
           ? SafeArea(
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 12,
+                ),
                 decoration: BoxDecoration(
                   color: colorScheme.surface,
                   boxShadow: [
@@ -561,13 +625,19 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
                       children: [
                         Text(
                           'Mevcut Durum',
-                          style: TextStyle(fontSize: 12, color: colorScheme.outline),
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: colorScheme.outline,
+                          ),
                         ),
                         Text(
                           getStatusLabel(_currentReport.status),
                           style: TextStyle(
                             fontWeight: FontWeight.bold,
-                            color: colorForStatus(_currentReport.status, isDarkMode: isDarkMode),
+                            color: colorForStatus(
+                              _currentReport.status,
+                              isDarkMode: isDarkMode,
+                            ),
                             fontSize: 16,
                           ),
                         ),
@@ -582,31 +652,53 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
                           note = await _showNoteDialog(newStatus);
                           if (note == null) return;
                         }
-                        await ref
-                            .read(reportRepositoryProvider)
-                            .updateStatusWithNote(
-                              _currentReport.id,
-                              newStatus,
-                              note,
+                        try {
+                          await ref
+                              .read(reportRepositoryProvider)
+                              .updateStatusWithNote(
+                                _currentReport.id,
+                                newStatus,
+                                note,
+                              );
+                          setState(() {
+                            _currentReport = _currentReport.copyWith(
+                              status: newStatus,
+                              resolutionNote: note,
                             );
-                        setState(() {
-                          _currentReport = _currentReport.copyWith(
-                            status: newStatus,
-                            resolutionNote: note,
-                          );
-                        });
-                        ref.invalidate(reportListProvider);
+                          });
+                          ref.invalidate(reportListProvider);
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Durum güncellendi'),
+                              ),
+                            );
+                          }
+                        } catch (e) {
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text('Güncellenemedi: $e'),
+                                backgroundColor: Colors.red,
+                              ),
+                            );
+                          }
+                        }
                       },
-                      itemBuilder: (context) => ReportStatus.values.map((status) {
-                        return PopupMenuItem(
-                          value: status,
-                          child: Text(getStatusLabel(status)),
-                        );
-                      }).toList(),
+                      itemBuilder: (context) =>
+                          ReportStatus.values.map((status) {
+                            return PopupMenuItem(
+                              value: status,
+                              child: Text(getStatusLabel(status)),
+                            );
+                          }).toList(),
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 20,
+                          vertical: 12,
+                        ),
                         decoration: BoxDecoration(
-                          color: colorScheme.primary, // Sabit lacivert yerine primary color
+                          color: colorScheme.primary,
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: Row(
@@ -614,10 +706,17 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
                           children: [
                             Text(
                               'Durumu Güncelle',
-                              style: TextStyle(color: colorScheme.onPrimary, fontWeight: FontWeight.bold),
+                              style: TextStyle(
+                                color: colorScheme.onPrimary,
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
                             const SizedBox(width: 8),
-                            Icon(Icons.keyboard_arrow_down, color: colorScheme.onPrimary, size: 20),
+                            Icon(
+                              Icons.keyboard_arrow_down,
+                              color: colorScheme.onPrimary,
+                              size: 20,
+                            ),
                           ],
                         ),
                       ),
@@ -643,7 +742,11 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
                     overline: 'AÇIKLAMA',
                     child: Text(
                       _currentReport.description,
-                      style: TextStyle(fontSize: 16, height: 1.6, color: colorScheme.onSurface),
+                      style: TextStyle(
+                        fontSize: 16,
+                        height: 1.6,
+                        color: colorScheme.onSurface,
+                      ),
                     ),
                   ),
                   _buildModularCard(
@@ -653,17 +756,26 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
                     child: Row(
                       children: [
                         CircleAvatar(
-                          backgroundColor: colorScheme.primary.withValues(alpha: 0.1),
-                          child: Icon(Icons.location_on_outlined, color: colorScheme.primary, size: 20),
+                          backgroundColor: colorScheme.primary.withValues(
+                            alpha: 0.1,
+                          ),
+                          child: Icon(
+                            Icons.location_on_outlined,
+                            color: colorScheme.primary,
+                            size: 20,
+                          ),
                         ),
                         const SizedBox(width: 12),
                         Expanded(
                           child: Text(
-                            _currentReport.fullAddress ?? 'Adres bilgisi bulunmuyor',
-                            style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+                            _currentReport.fullAddress ??
+                                'Adres bilgisi bulunmuyor',
+                            style: const TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w600,
+                            ),
                           ),
                         ),
-                        Icon(Icons.chevron_right, color: colorScheme.outline),
                       ],
                     ),
                   ),
@@ -676,8 +788,13 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
                       child: Row(
                         children: [
                           CircleAvatar(
-                            backgroundColor: colorScheme.surfaceContainerHighest,
-                            child: Icon(Icons.person_outline, color: colorScheme.onSurfaceVariant, size: 20),
+                            backgroundColor:
+                                colorScheme.surfaceContainerHighest,
+                            child: Icon(
+                              Icons.person_outline,
+                              color: colorScheme.onSurfaceVariant,
+                              size: 20,
+                            ),
                           ),
                           const SizedBox(width: 12),
                           Expanded(
@@ -686,12 +803,19 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
                               children: [
                                 Text(
                                   _currentReport.senderName ?? "Bilinmiyor",
-                                  style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+                                  style: const TextStyle(
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w600,
+                                  ),
                                 ),
-                                if (_currentReport.contactPhone != null && _currentReport.contactPhone!.isNotEmpty)
+                                if (_currentReport.contactPhone != null &&
+                                    _currentReport.contactPhone!.isNotEmpty)
                                   Text(
                                     'İletişim: ${_currentReport.contactPhone}',
-                                    style: TextStyle(color: colorScheme.onSurfaceVariant, fontSize: 13),
+                                    style: TextStyle(
+                                      color: colorScheme.onSurfaceVariant,
+                                      fontSize: 13,
+                                    ),
                                   ),
                               ],
                             ),
@@ -708,11 +832,16 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           Text(
-                            _currentReport.assignedStaffName ?? 'Henüz atanmadı',
+                            _currentReport.assignedStaffName ??
+                                'Henüz atanmadı',
                             style: TextStyle(
                               fontSize: 16,
-                              fontStyle: _currentReport.assignedStaffId != null ? FontStyle.normal : FontStyle.italic,
-                              fontWeight: _currentReport.assignedStaffId != null ? FontWeight.bold : FontWeight.normal,
+                              fontStyle: _currentReport.assignedStaffId != null
+                                  ? FontStyle.normal
+                                  : FontStyle.italic,
+                              fontWeight: _currentReport.assignedStaffId != null
+                                  ? FontWeight.bold
+                                  : FontWeight.normal,
                             ),
                           ),
                           if (canAssignStaff)
@@ -721,7 +850,8 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
                                 final selectedStaff = await _showAssignDialog();
                                 if (selectedStaff != null) {
                                   try {
-                                    if (_currentReport.assignedStaffId == null) {
+                                    if (_currentReport.assignedStaffId ==
+                                        null) {
                                       await ref
                                           .read(reportRepositoryProvider)
                                           .assignReport(
@@ -747,39 +877,61 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
                                     ref.invalidate(reportListProvider);
 
                                     if (context.mounted) {
-                                      ScaffoldMessenger.of(context).showSnackBar(
-                                        const SnackBar(content: Text('Atama başarılı')),
+                                      ScaffoldMessenger.of(
+                                        context,
+                                      ).showSnackBar(
+                                        const SnackBar(
+                                          content: Text('Atama başarılı'),
+                                        ),
                                       );
                                     }
                                   } catch (e) {}
                                 }
                               },
                               style: OutlinedButton.styleFrom(
-                                side: BorderSide(color: colorScheme.outline.withValues(alpha: 0.5)),
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                side: BorderSide(
+                                  color: colorScheme.outline.withValues(
+                                    alpha: 0.5,
+                                  ),
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
                               ),
                               child: Text(
-                                _currentReport.assignedStaffId != null ? 'Değiştir' : 'Ata',
+                                _currentReport.assignedStaffId != null
+                                    ? 'Değiştir'
+                                    : 'Ata',
                                 style: TextStyle(color: colorScheme.onSurface),
                               ),
                             ),
                         ],
                       ),
                     ),
-                  if (_currentReport.resolutionNote != null && _currentReport.resolutionNote!.isNotEmpty)
+                  if (_currentReport.resolutionNote != null &&
+                      _currentReport.resolutionNote!.isNotEmpty)
                     _buildModularCard(
                       colorScheme: colorScheme,
                       isDarkMode: isDarkMode,
                       overline: 'ÇÖZÜM NOTU',
-                      backgroundColor: getStatusBgColor(_currentReport.status, isDarkMode: isDarkMode),
-                      borderColor: colorForStatus(_currentReport.status, isDarkMode: isDarkMode).withValues(alpha: 0.2),
+                      backgroundColor: getStatusBgColor(
+                        _currentReport.status,
+                        isDarkMode: isDarkMode,
+                      ),
+                      borderColor: colorForStatus(
+                        _currentReport.status,
+                        isDarkMode: isDarkMode,
+                      ).withValues(alpha: 0.2),
                       child: Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Icon(
                             Icons.info_outline,
                             size: 20,
-                            color: colorForStatus(_currentReport.status, isDarkMode: isDarkMode),
+                            color: colorForStatus(
+                              _currentReport.status,
+                              isDarkMode: isDarkMode,
+                            ),
                           ),
                           const SizedBox(width: 12),
                           Expanded(
@@ -788,7 +940,10 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
                               style: TextStyle(
                                 fontStyle: FontStyle.italic,
                                 height: 1.5,
-                                color: colorForStatus(_currentReport.status, isDarkMode: isDarkMode), // Yeni kontrast rengi
+                                color: colorForStatus(
+                                  _currentReport.status,
+                                  isDarkMode: isDarkMode,
+                                ),
                               ),
                             ),
                           ),
