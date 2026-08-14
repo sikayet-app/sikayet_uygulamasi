@@ -16,7 +16,11 @@ import 'package:path_provider/path_provider.dart';
 import 'package:geocoding/geocoding.dart';
 import '../core/report_ui_helpers.dart';
 import '../core/app_colors.dart';
-import 'dart:convert';
+import 'dart:async'; // Timer için eklendi
+import 'package:mask_text_input_formatter/mask_text_input_formatter.dart';
+
+// YENİ: Konum giriş modları
+enum LocationInputMode { current, manual }
 
 class CreateReportScreen extends ConsumerStatefulWidget {
   final Report? existingReport;
@@ -29,25 +33,45 @@ class CreateReportScreen extends ConsumerStatefulWidget {
 class _CreateReportScreenState extends ConsumerState<CreateReportScreen> {
   final TextEditingController _adressController = TextEditingController();
   final TextEditingController _phoneController = TextEditingController();
+  final MapController _pickerMapController = MapController();
+
   bool _isSubmitting = false;
   final _formKey = GlobalKey<FormState>();
-
   String _title = '';
   String _description = '';
   ReportCategory _selectedCategory = ReportCategory.other;
+
   double? _latitude;
   double? _longitude;
   String? _district;
   String? _quarter;
+
   bool _isLoadingLocation = false;
   List<String> _selectedImages = [];
+
+  // YENİ: Harita durum değişkenleri
+  LocationInputMode _locationMode = LocationInputMode.current;
+  Timer? _debounce;
+  bool _isReverseGeocoding = false;
+
+  var phoneFormatter = MaskTextInputFormatter(
+    mask: '0 (###) ### ## ##',
+    filter: {"#": RegExp(r'[0-9]')},
+    type: MaskAutoCompletionType.lazy,
+  );
 
   @override
   void initState() {
     super.initState();
     final currentUser = ref.read(currentUserProvider);
+
+    String initialPhone = '';
+
     if (widget.existingReport != null) {
       _isLoadingLocation = false;
+      // YENİ: Düzenleme modunda varsayılanı manual yapıyoruz
+      _locationMode = LocationInputMode.manual; 
+      
       _latitude = widget.existingReport!.latitude;
       _longitude = widget.existingReport!.longitude;
       _title = widget.existingReport!.title;
@@ -57,17 +81,30 @@ class _CreateReportScreenState extends ConsumerState<CreateReportScreen> {
       _adressController.text = widget.existingReport!.fullAddress ?? '';
       _district = widget.existingReport!.addressDistrict;
       _quarter = widget.existingReport!.addressQuarter;
-      _phoneController.text =
-          widget.existingReport!.contactPhone ?? currentUser?.phoneNumber ?? '';
+      
+      initialPhone = widget.existingReport!.contactPhone ?? currentUser?.phoneNumber ?? '';
     } else {
-      _phoneController.text = currentUser?.phoneNumber ?? '';
+      initialPhone = currentUser?.phoneNumber ?? '';
     }
+
+    _phoneController.text = phoneFormatter.maskText(initialPhone);
+  }
+
+  // YENİ: Dispose ile memory leak önleme
+  @override
+  void dispose() {
+    _debounce?.cancel();
+    _adressController.dispose();
+    _phoneController.dispose();
+    _pickerMapController.dispose();
+    super.dispose();
   }
 
   Future<void> _fetchCurrentLocation() async {
     setState(() {
       _isLoadingLocation = true;
     });
+
     try {
       final position = await LocationService().getCurrentLocation();
       _latitude = position.latitude;
@@ -78,11 +115,10 @@ class _CreateReportScreenState extends ConsumerState<CreateReportScreen> {
         _longitude!,
       );
       final place = placemarks.first;
+
       _district = place.subAdministrativeArea;
       _quarter = place.subLocality;
-
-      final adressText =
-          '${place.subLocality} Mah. ${place.thoroughfare}, ${place.subAdministrativeArea}';
+      final adressText = '${place.subLocality ?? ""} Mah. ${place.thoroughfare ?? ""}, ${place.subAdministrativeArea ?? ""}';
       _adressController.text = adressText;
 
       setState(() {
@@ -90,12 +126,40 @@ class _CreateReportScreenState extends ConsumerState<CreateReportScreen> {
       });
     } catch (e) {
       if (context.mounted) {
-        _isLoadingLocation = false;
+        setState(() {
+          _isLoadingLocation = false;
+        });
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Hata: $e'), backgroundColor: Colors.red),
         );
       }
     }
+  }
+
+  // YENİ: Harita kaydırıldığında tetiklenen metod
+  void _onMapPositionChanged(MapCamera camera, bool hasGesture) {
+    if (!hasGesture) return; 
+
+    _debounce?.cancel();
+    _debounce = Timer(const Duration(milliseconds: 600), () async {
+      final center = camera.center;
+      setState(() {
+        _latitude = center.latitude;
+        _longitude = center.longitude;
+        _isReverseGeocoding = true;
+      });
+
+      try {
+        final placemarks = await placemarkFromCoordinates(center.latitude, center.longitude);
+        final place = placemarks.first;
+        _district = place.subAdministrativeArea;
+        _quarter = place.subLocality;
+        _adressController.text = '${place.subLocality ?? ""} Mah. ${place.thoroughfare ?? ""}, ${place.subAdministrativeArea ?? ""}';
+      } catch (_) {
+      } finally {
+        if (mounted) setState(() => _isReverseGeocoding = false);
+      }
+    });
   }
 
   Future<void> _pickImage(ImageSource source) async {
@@ -105,56 +169,33 @@ class _CreateReportScreenState extends ConsumerState<CreateReportScreen> {
       );
       return;
     }
-
     try {
       final picker = ImagePicker();
       if (source == ImageSource.camera) {
-        final pickedFile = await picker.pickImage(
-          source: source,
-          maxWidth: 1280,
-          imageQuality: 80,
-        );
+        final pickedFile = await picker.pickImage(source: source, maxWidth: 1280, imageQuality: 80);
         if (pickedFile == null) return;
-
         final appDir = await getApplicationDocumentsDirectory();
         final extension = path.extension(pickedFile.path);
         final uniqueFileName = '${const Uuid().v4()}$extension';
-        final savedImage = await File(
-          pickedFile.path,
-        ).copy('${appDir.path}/$uniqueFileName');
-
-        if (mounted) {
-          setState(() {
-            _selectedImages.add(savedImage.path);
-          });
-        }
+        final savedImage = await File(pickedFile.path).copy('${appDir.path}/$uniqueFileName');
+        if (mounted) setState(() => _selectedImages.add(savedImage.path));
       }
 
       if (source == ImageSource.gallery) {
         final pickedFiles = await picker.pickMultiImage();
         if (pickedFiles.isEmpty) return;
-
         final appDir = await getApplicationDocumentsDirectory();
         for (var pickedFile in pickedFiles) {
           if (_selectedImages.length >= 3) break;
           final extension = path.extension(pickedFile.path);
           final uniqueFileName = '${const Uuid().v4()}$extension';
-          final savedImage = await File(
-            pickedFile.path,
-          ).copy('${appDir.path}/$uniqueFileName');
-
-          if (mounted) {
-            setState(() {
-              _selectedImages.add(savedImage.path);
-            });
-          }
+          final savedImage = await File(pickedFile.path).copy('${appDir.path}/$uniqueFileName');
+          if (mounted) setState(() => _selectedImages.add(savedImage.path));
         }
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Fotoğraf eklenemedi: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Fotoğraf eklenemedi: $e')));
       }
     }
   }
@@ -166,22 +207,8 @@ class _CreateReportScreenState extends ConsumerState<CreateReportScreen> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            ListTile(
-              leading: const Icon(Icons.camera_alt),
-              title: const Text('Kamera'),
-              onTap: () {
-                Navigator.pop(context);
-                _pickImage(ImageSource.camera);
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.photo_library),
-              title: const Text('Galeri'),
-              onTap: () {
-                Navigator.pop(context);
-                _pickImage(ImageSource.gallery);
-              },
-            ),
+            ListTile(leading: const Icon(Icons.camera_alt), title: const Text('Kamera'), onTap: () { Navigator.pop(context); _pickImage(ImageSource.camera); }),
+            ListTile(leading: const Icon(Icons.photo_library), title: const Text('Galeri'), onTap: () { Navigator.pop(context); _pickImage(ImageSource.gallery); }),
           ],
         ),
       ),
@@ -190,6 +217,15 @@ class _CreateReportScreenState extends ConsumerState<CreateReportScreen> {
 
   Future<void> _submitForm() async {
     if (_formKey.currentState!.validate()) {
+      
+      // YENİ: 0.0 Atlantis Hatası Engelleme!
+      if (_locationMode == LocationInputMode.current && (_latitude == null || _longitude == null)) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Lütfen önce "Konumumu Kullan" butonuna tıklayarak konumunuzu alın.')),
+        );
+        return;
+      }
+
       setState(() {
         _isSubmitting = true;
       });
@@ -201,60 +237,21 @@ class _CreateReportScreenState extends ConsumerState<CreateReportScreen> {
         double finalLatitude = _latitude ?? 0.0;
         double finalLongitude = _longitude ?? 0.0;
 
-        if (_latitude == null || _longitude == null) {
-          try {
-            List<Location> locations = await locationFromAddress(
-              _adressController.text,
-            );
-            if (locations.isNotEmpty) {
-              finalLatitude = locations.first.latitude;
-              finalLongitude = locations.first.longitude;
-              try {
-                final manualPlacemarks = await placemarkFromCoordinates(
-                  finalLatitude,
-                  finalLongitude,
-                );
-                if (manualPlacemarks.isNotEmpty) {
-                  _district = manualPlacemarks.first.subAdministrativeArea;
-                  _quarter = manualPlacemarks.first.subLocality;
-                }
-              } catch (_) {}
-            }
-          } catch (e) {
-            if (context.mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text(
-                    'Yazdığınız adres haritada bulunamadı. Lütfen daha net yazın veya GPS butonunu kullanın.',
-                  ),
-                  backgroundColor: Colors.red,
-                ),
-              );
-              setState(() {
-                _isSubmitting = false;
-              });
-            }
-            return;
-          }
-        }
-
         final reportToSave = Report(
           id: widget.existingReport?.id ?? const Uuid().v4(),
           title: _title,
           description: _description,
           category: _selectedCategory,
           status: widget.existingReport?.status ?? ReportStatus.pending,
-          latitude: widget.existingReport?.latitude ?? finalLatitude,
-          longitude: widget.existingReport?.longitude ?? finalLongitude,
+          latitude: finalLatitude,
+          longitude: finalLongitude,
           imagePaths: _selectedImages,
           createdAt: widget.existingReport?.createdAt ?? DateTime.now(),
           userId: widget.existingReport?.userId ?? currentUser!.id,
           addressDistrict: _district,
           addressQuarter: _quarter,
           fullAddress: _adressController.text,
-          contactPhone: _phoneController.text.isNotEmpty
-              ? _phoneController.text
-              : null,
+          contactPhone: _phoneController.text.isNotEmpty ? _phoneController.text : null,
         );
 
         final repository = ref.read(reportRepositoryProvider);
@@ -265,15 +262,14 @@ class _CreateReportScreenState extends ConsumerState<CreateReportScreen> {
         }
 
         ref.invalidate(reportListProvider);
+        ref.invalidate(filteredReportListProvider);
 
         if (context.mounted) {
           Navigator.of(context).pop(reportToSave);
         }
       } catch (e) {
         if (context.mounted) {
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(SnackBar(content: Text('Bir hata oluştu: $e')));
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Bir hata oluştu: $e')));
         }
       } finally {
         if (context.mounted) {
@@ -286,11 +282,7 @@ class _CreateReportScreenState extends ConsumerState<CreateReportScreen> {
   }
 
   // YARDIMCI METOT: MODÜLER KART
-  Widget _buildFormSection(
-    BuildContext context,
-    String overline,
-    Widget child,
-  ) {
+  Widget _buildFormSection(BuildContext context, String overline, Widget child) {
     final colorScheme = Theme.of(context).colorScheme;
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
 
@@ -313,29 +305,149 @@ class _CreateReportScreenState extends ConsumerState<CreateReportScreen> {
             width: double.infinity,
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: isDarkMode
-                  ? colorScheme.surfaceContainerHighest
-                  : Colors.white,
+              color: isDarkMode ? colorScheme.surfaceContainerHighest : Colors.white,
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(
-                color: isDarkMode
-                    ? colorScheme.outline.withValues(alpha: 0.15)
-                    : Colors.black.withValues(alpha: 0.05),
-              ),
-              boxShadow: isDarkMode
-                  ? []
-                  : [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.02),
-                        blurRadius: 10,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
+              border: Border.all(color: isDarkMode ? colorScheme.outline.withValues(alpha: 0.15) : Colors.black.withValues(alpha: 0.05)),
+              boxShadow: isDarkMode ? [] : [
+                BoxShadow(color: Colors.black.withValues(alpha: 0.02), blurRadius: 10, offset: const Offset(0, 4)),
+              ],
             ),
             child: child,
           ),
         ],
       ),
+    );
+  }
+
+  // YENİ: TOGGLE UI TASARIMI
+  Widget _buildLocationModeToggle(ColorScheme colorScheme) {
+    return Container(
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        children: [
+          Expanded(child: _buildModeSegment(colorScheme, LocationInputMode.current, Icons.my_location, 'Mevcut Konumum')),
+          Expanded(child: _buildModeSegment(colorScheme, LocationInputMode.manual, Icons.edit_location_alt_outlined, 'Başka Bir Adres')),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildModeSegment(ColorScheme colorScheme, LocationInputMode mode, IconData icon, String label) {
+    final isSelected = _locationMode == mode;
+    return GestureDetector(
+      onTap: () => setState(() => _locationMode = mode),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(vertical: 10),
+        decoration: BoxDecoration(
+          color: isSelected ? AppColors.navy : Colors.transparent,
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, size: 16, color: isSelected ? Colors.white : colorScheme.onSurfaceVariant),
+            const SizedBox(width: 6),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: isSelected ? Colors.white : colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // YENİ: MANUEL HARİTA SEÇİCİ
+  Widget _buildManualAddressPicker(ColorScheme colorScheme) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        TextFormField(
+          controller: _adressController,
+          decoration: InputDecoration(
+            prefixIcon: const Icon(Icons.location_on_outlined),
+            hintText: 'Haritadan seçin veya adresi yazın',
+            labelText: 'Açık Adres/Konum Tarifi',
+            labelStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+            floatingLabelBehavior: FloatingLabelBehavior.always,
+            filled: true,
+            fillColor: colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+          ),
+          validator: (v) => (v == null || v.isEmpty) ? 'Adres alanı boş bırakılamaz' : null,
+        ),
+        const SizedBox(height: 12),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(12),
+          child: SizedBox(
+            height: 220,
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                FlutterMap(
+                  mapController: _pickerMapController,
+                  options: MapOptions(
+                    initialCenter: (_latitude != null && _longitude != null)
+                        ? LatLng(_latitude!, _longitude!)
+                        : const LatLng(37.0662, 37.3833), // varsayılan
+                    initialZoom: 15,
+                    onPositionChanged: _onMapPositionChanged,
+                    interactionOptions: const InteractionOptions(
+                      flags: InteractiveFlag.drag | InteractiveFlag.pinchZoom | InteractiveFlag.doubleTapZoom,
+                    ),
+                  ),
+                  children: [
+                    TileLayer(
+                      urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                      userAgentPackageName: 'com.example.sikayet_uygulamasi',
+                    ),
+                  ],
+                ),
+                IgnorePointer(
+                  child: Padding(
+                    padding: const EdgeInsets.only(bottom: 34),
+                    child: Icon(
+                      Icons.location_on,
+                      size: 40,
+                      color: AppColors.accent,
+                      shadows: [Shadow(color: Colors.black.withValues(alpha: 0.3), blurRadius: 4)],
+                    ),
+                  ),
+                ),
+                if (_isReverseGeocoding)
+                  Positioned(
+                    top: 10,
+                    right: 10,
+                    child: Container(
+                      padding: const EdgeInsets.all(6),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(8),
+                        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 4)],
+                      ),
+                      child: const SizedBox(
+                        width: 14,
+                        height: 14,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 6),
+        Text('Haritayı sürükleyerek doğru konumu işaretleyin', style: TextStyle(fontSize: 11, color: colorScheme.outline)),
+      ],
     );
   }
 
@@ -346,29 +458,18 @@ class _CreateReportScreenState extends ConsumerState<CreateReportScreen> {
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
-      backgroundColor: isDarkMode
-          ? colorScheme.surface
-          : AppColors.surfaceWarmLight,
+      backgroundColor: isDarkMode ? colorScheme.surface : AppColors.surfaceWarmLight,
       appBar: AppBar(
         elevation: 0,
-        title: Text(
-          widget.existingReport != null
-              ? 'Bildirimi Düzenle'
-              : 'Yeni Bildirim Oluştur',
-        ),
+        title: Text(widget.existingReport != null ? 'Bildirimi Düzenle' : 'Yeni Bildirim Oluştur'),
       ),
-      // --- SABİT ALT BAR (GÖNDER BUTONU) ---
       bottomNavigationBar: SafeArea(
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
           decoration: BoxDecoration(
             color: colorScheme.surface,
             boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.05),
-                blurRadius: 10,
-                offset: const Offset(0, -5),
-              ),
+              BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10, offset: const Offset(0, -5)),
             ],
           ),
           child: SizedBox(
@@ -379,27 +480,12 @@ class _CreateReportScreenState extends ConsumerState<CreateReportScreen> {
                 backgroundColor: primaryColor,
                 foregroundColor: Colors.white,
                 elevation: 0,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
               ),
               onPressed: _isSubmitting ? null : _submitForm,
               child: _isSubmitting
-                  ? const SizedBox(
-                      height: 24,
-                      width: 24,
-                      child: CircularProgressIndicator(
-                        color: Colors.white,
-                        strokeWidth: 3,
-                      ),
-                    )
-                  : const Text(
-                      'Bildirimi Gönder',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
+                  ? const SizedBox(height: 24, width: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 3))
+                  : const Text('Bildirimi Gönder', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
             ),
           ),
         ),
@@ -419,18 +505,16 @@ class _CreateReportScreenState extends ConsumerState<CreateReportScreen> {
                   GridView.builder(
                     shrinkWrap: true,
                     physics: const NeverScrollableScrollPhysics(),
-                    gridDelegate:
-                        const SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: 4,
-                          crossAxisSpacing: 12,
-                          mainAxisSpacing: 12,
-                          childAspectRatio: 0.85,
-                        ),
+                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: 4,
+                      crossAxisSpacing: 12,
+                      mainAxisSpacing: 12,
+                      childAspectRatio: 0.85,
+                    ),
                     itemCount: ReportCategory.values.length,
                     itemBuilder: (context, index) {
                       final category = ReportCategory.values[index];
                       final isSelected = _selectedCategory == category;
-
                       return GestureDetector(
                         onTap: () {
                           setState(() {
@@ -440,15 +524,10 @@ class _CreateReportScreenState extends ConsumerState<CreateReportScreen> {
                         child: AnimatedContainer(
                           duration: const Duration(milliseconds: 200),
                           decoration: BoxDecoration(
-                            // DÜZELTME: AppColors.navy kullanımı
-                            color: isSelected
-                                ? AppColors.navy
-                                : Colors.transparent,
+                            color: isSelected ? AppColors.navy : Colors.transparent,
                             borderRadius: BorderRadius.circular(16),
                             border: Border.all(
-                              color: isSelected
-                                  ? Colors.transparent
-                                  : colorScheme.outline.withValues(alpha: 0.2),
+                              color: isSelected ? Colors.transparent : colorScheme.outline.withValues(alpha: 0.2),
                               width: 1.5,
                             ),
                           ),
@@ -457,9 +536,7 @@ class _CreateReportScreenState extends ConsumerState<CreateReportScreen> {
                             children: [
                               Icon(
                                 getCategoryIcon(category),
-                                color: isSelected
-                                    ? Colors.white
-                                    : colorScheme.onSurfaceVariant,
+                                color: isSelected ? Colors.white : colorScheme.onSurfaceVariant,
                                 size: 28,
                               ),
                               const SizedBox(height: 8),
@@ -467,12 +544,8 @@ class _CreateReportScreenState extends ConsumerState<CreateReportScreen> {
                                 getCategoryLabel(category),
                                 style: TextStyle(
                                   fontSize: 11,
-                                  fontWeight: isSelected
-                                      ? FontWeight.bold
-                                      : FontWeight.w500,
-                                  color: isSelected
-                                      ? Colors.white
-                                      : colorScheme.onSurfaceVariant,
+                                  fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                                  color: isSelected ? Colors.white : colorScheme.onSurfaceVariant,
                                 ),
                                 textAlign: TextAlign.center,
                                 maxLines: 1,
@@ -489,24 +562,14 @@ class _CreateReportScreenState extends ConsumerState<CreateReportScreen> {
                     initialValue: _title,
                     decoration: InputDecoration(
                       labelText: 'BAŞLIK',
-                      labelStyle: const TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                      ),
+                      labelStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
                       hintText: 'Örn: Sokak lambası arızalı',
                       floatingLabelBehavior: FloatingLabelBehavior.always,
                       filled: true,
-                      fillColor: colorScheme.surfaceContainerHighest.withValues(
-                        alpha: 0.3,
-                      ),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide.none,
-                      ),
+                      fillColor: colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
                     ),
-                    validator: (value) => (value == null || value.isEmpty)
-                        ? 'Lütfen bir başlık girin'
-                        : null,
+                    validator: (value) => (value == null || value.isEmpty) ? 'Lütfen bir başlık girin' : null,
                     onSaved: (value) => _title = value!,
                   ),
                   const SizedBox(height: 16),
@@ -514,25 +577,15 @@ class _CreateReportScreenState extends ConsumerState<CreateReportScreen> {
                     initialValue: _description,
                     decoration: InputDecoration(
                       labelText: 'AÇIKLAMA',
-                      labelStyle: const TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                      ),
+                      labelStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
                       hintText: 'Ne olduğunu kısaca anlatın...',
                       floatingLabelBehavior: FloatingLabelBehavior.always,
                       filled: true,
-                      fillColor: colorScheme.surfaceContainerHighest.withValues(
-                        alpha: 0.3,
-                      ),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide.none,
-                      ),
+                      fillColor: colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
                     ),
                     maxLines: 4,
-                    validator: (value) => (value == null || value.isEmpty)
-                        ? 'Lütfen açıklama yazınız'
-                        : null,
+                    validator: (value) => (value == null || value.isEmpty) ? 'Lütfen açıklama yazınız' : null,
                     onSaved: (value) => _description = value!,
                   ),
                 ],
@@ -550,21 +603,14 @@ class _CreateReportScreenState extends ConsumerState<CreateReportScreen> {
                         decoration: BoxDecoration(
                           color: colorScheme.surfaceContainerHighest,
                           borderRadius: BorderRadius.circular(16),
-                          border: Border.all(
-                            color: colorScheme.outline,
-                            width: 2,
-                          ),
+                          border: Border.all(color: colorScheme.outline, width: 2),
                         ),
                         height: 150,
                         width: double.infinity,
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Icon(
-                              Icons.photo_camera,
-                              size: 40,
-                              color: colorScheme.outline,
-                            ),
+                            Icon(Icons.photo_camera, size: 40, color: colorScheme.outline),
                             const SizedBox(height: 8),
                             const Text('Fotoğraf ekle (Maksimum 3)'),
                           ],
@@ -588,25 +634,14 @@ class _CreateReportScreenState extends ConsumerState<CreateReportScreen> {
                                         height: 100,
                                         width: 100,
                                         fit: BoxFit.cover,
-                                        errorBuilder:
-                                            (context, error, stackTrace) =>
-                                                Container(
-                                                  height: 100,
-                                                  width: 100,
-                                                  color: colorScheme
-                                                      .surfaceContainerHighest,
-                                                  child: Icon(
-                                                    Icons.broken_image,
-                                                    color: colorScheme.outline,
-                                                  ),
-                                                ),
+                                        errorBuilder: (context, error, stackTrace) => Container(
+                                          height: 100,
+                                          width: 100,
+                                          color: colorScheme.surfaceContainerHighest,
+                                          child: Icon(Icons.broken_image, color: colorScheme.outline),
+                                        ),
                                       )
-                                    : Image.file(
-                                        File(currentImage),
-                                        height: 100,
-                                        width: 100,
-                                        fit: BoxFit.cover,
-                                      ),
+                                    : Image.file(File(currentImage), height: 100, width: 100, fit: BoxFit.cover),
                               ),
                               Positioned(
                                 top: -6,
@@ -619,15 +654,8 @@ class _CreateReportScreenState extends ConsumerState<CreateReportScreen> {
                                   },
                                   child: Container(
                                     padding: const EdgeInsets.all(4),
-                                    decoration: const BoxDecoration(
-                                      color: Colors.black87,
-                                      shape: BoxShape.circle,
-                                    ),
-                                    child: const Icon(
-                                      Icons.close,
-                                      size: 16,
-                                      color: Colors.white,
-                                    ),
+                                    decoration: const BoxDecoration(color: Colors.black87, shape: BoxShape.circle),
+                                    child: const Icon(Icons.close, size: 16, color: Colors.white),
                                   ),
                                 ),
                               ),
@@ -643,138 +671,104 @@ class _CreateReportScreenState extends ConsumerState<CreateReportScreen> {
                               decoration: BoxDecoration(
                                 color: primaryColor.withValues(alpha: 0.05),
                                 borderRadius: BorderRadius.circular(12),
-                                border: Border.all(
-                                  color: primaryColor.withValues(alpha: 0.3),
-                                  width: 2,
-                                ),
+                                border: Border.all(color: primaryColor.withValues(alpha: 0.3), width: 2),
                               ),
-                              child: Icon(
-                                Icons.add_a_photo,
-                                color: primaryColor,
-                              ),
+                              child: Icon(Icons.add_a_photo, color: primaryColor),
                             ),
                           ),
                       ],
                     ),
             ),
 
-            // 3. BÖLÜM: KONUM
+            // 3. BÖLÜM: YENİ BİRLEŞTİRİLMİŞ KONUM ALANI
             _buildFormSection(
               context,
               'KONUM',
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  TextFormField(
-                    controller: _adressController,
-                    decoration: InputDecoration(
-                      prefixIcon: const Icon(Icons.location_on_outlined),
-                      hintText: "Örn: Şahinbey, Gaziantep...",
-                      filled: true,
-                      fillColor: colorScheme.surfaceContainerHighest.withValues(
-                        alpha: 0.3,
+                  _buildLocationModeToggle(colorScheme),
+                  const SizedBox(height: 16),
+                  
+                  if (_locationMode == LocationInputMode.current) ...[
+                    TextFormField(
+                      controller: _adressController,
+                      readOnly: true, // Elle düzenlenmesin
+                      decoration: InputDecoration(
+                        prefixIcon: const Icon(Icons.location_on_outlined),
+                        hintText: '"Konumumu Kullan" butonuna basın',
+                        filled: true,
+                        fillColor: colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
                       ),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide.none,
-                      ),
-                      labelText: 'Açık Adres/Konum Tarifi',
-                      labelStyle: const TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                      ),
-                      floatingLabelBehavior: FloatingLabelBehavior.always,
-                      suffixIcon: _isLoadingLocation
-                          ? const Padding(
-                              padding: EdgeInsets.all(12),
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
-                          : IconButton(
-                              onPressed: _fetchCurrentLocation,
-                              icon: const Icon(Icons.my_location),
-                            ),
+                      validator: (v) => (v == null || v.isEmpty) ? 'Önce konumunuzu alın' : null,
                     ),
-                    validator: (value) {
-                      if (value == null || value.isEmpty)
-                        return 'Adres alanı boş bırakılamaz';
-                      return null;
-                    },
-                  ),
-                  if (_latitude != null && _longitude != null) ...[
-                    const SizedBox(height: 16),
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(12),
-                      child: SizedBox(
-                        height: 140,
-                        width: double.infinity,
-                        child: FlutterMap(
-                          options: MapOptions(
-                            initialCenter: LatLng(_latitude!, _longitude!),
-                            initialZoom: 15,
-                            interactionOptions: const InteractionOptions(
-                              flags: InteractiveFlag.none,
-                            ),
-                          ),
-                          children: [
-                            TileLayer(
-                              urlTemplate:
-                                  'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                              userAgentPackageName:
-                                  'com.example.sikayet_uygulamasi',
-                              tileBuilder: (context, tileWidget, tile) {
-                                final isDarkMode =
-                                    Theme.of(context).brightness ==
-                                    Brightness.dark;
-                                if (isDarkMode) {
-                                  return ColorFiltered(
-                                    colorFilter: const ColorFilter.matrix([
-                                      -1,
-                                      0,
-                                      0,
-                                      0,
-                                      255,
-                                      0,
-                                      -1,
-                                      0,
-                                      0,
-                                      255,
-                                      0,
-                                      0,
-                                      -1,
-                                      0,
-                                      255,
-                                      0,
-                                      0,
-                                      0,
-                                      1,
-                                      0,
-                                    ]),
-                                    child: tileWidget,
-                                  );
-                                }
-                                return tileWidget;
-                              },
-                            ),
-                            MarkerLayer(
-                              markers: [
-                                Marker(
-                                  point: LatLng(_latitude!, _longitude!),
-                                  width: 40,
-                                  height: 40,
-                                  alignment: Alignment.topCenter,
-                                  child: Icon(
-                                    Icons.location_on,
-                                    color: colorScheme.primary,
-                                    size: 40,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
+                    const SizedBox(height: 12),
+                    SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton.icon(
+                        onPressed: _isLoadingLocation ? null : _fetchCurrentLocation,
+                        icon: _isLoadingLocation
+                            ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                            : const Icon(Icons.my_location, size: 18),
+                        label: Text(_isLoadingLocation ? 'Konum alınıyor...' : 'Konumumu Kullan'),
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          side: const BorderSide(color: AppColors.navy),
+                          foregroundColor: AppColors.navy,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                         ),
                       ),
                     ),
-                  ],
+                    
+                    // Salt okunur harita (Eğer koordinat bulunduysa gösterilir)
+                    if (_latitude != null && _longitude != null) ...[
+                      const SizedBox(height: 16),
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(12),
+                        child: SizedBox(
+                          height: 140,
+                          width: double.infinity,
+                          child: FlutterMap(
+                            options: MapOptions(
+                              initialCenter: LatLng(_latitude!, _longitude!),
+                              initialZoom: 15,
+                              interactionOptions: const InteractionOptions(flags: InteractiveFlag.none),
+                            ),
+                            children: [
+                              TileLayer(
+                                urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                                userAgentPackageName: 'com.example.sikayet_uygulamasi',
+                                tileBuilder: (context, tileWidget, tile) {
+                                  if (isDarkMode) {
+                                    return ColorFiltered(
+                                      colorFilter: const ColorFilter.matrix([
+                                        -1, 0, 0, 0, 255, 0, -1, 0, 0, 255, 0, 0, -1, 0, 255, 0, 0, 0, 1, 0,
+                                      ]),
+                                      child: tileWidget,
+                                    );
+                                  }
+                                  return tileWidget;
+                                },
+                              ),
+                              MarkerLayer(
+                                markers: [
+                                  Marker(
+                                    point: LatLng(_latitude!, _longitude!),
+                                    width: 40,
+                                    height: 40,
+                                    alignment: Alignment.topCenter,
+                                    child: Icon(Icons.location_on, color: colorScheme.primary, size: 40),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ] else 
+                    _buildManualAddressPicker(colorScheme),
                 ],
               ),
             ),
@@ -786,29 +780,23 @@ class _CreateReportScreenState extends ConsumerState<CreateReportScreen> {
               TextFormField(
                 controller: _phoneController,
                 keyboardType: TextInputType.phone,
+                inputFormatters: [phoneFormatter],
                 decoration: InputDecoration(
                   labelText: 'İletişim Numarası',
-                  labelStyle: const TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
-                  ),
+                  hintText: '0 (5XX) XXX XX XX',
+                  labelStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
                   floatingLabelBehavior: FloatingLabelBehavior.always,
                   prefixIcon: const Icon(Icons.phone_outlined),
                   filled: true,
-                  fillColor: colorScheme.surfaceContainerHighest.withValues(
-                    alpha: 0.3,
-                  ),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(16),
-                    borderSide: BorderSide.none,
-                  ),
+                  fillColor: colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
                 ),
                 validator: (value) {
                   if (value == null || value.isEmpty) {
                     return 'Telefon numarası zorunludur.';
                   }
-                  if (value.length != 11 || !value.startsWith('0')) {
-                    return 'Numara 0 ile başlamalı ve 11 hane olmalıdır.';
+                  if (value.length < 17) {
+                    return 'Geçerli bir telefon numarası girin.';
                   }
                   return null;
                 },

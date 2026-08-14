@@ -2,6 +2,7 @@ import 'package:uuid/uuid.dart';
 import '../local/database_helper.dart';
 import '../models/report.dart';
 import 'report_repository.dart';
+import '../models/paginated_result.dart';
 
 class LocalReportRepository implements ReportRepository {
   final DatabaseHelper _dbHelper = DatabaseHelper.instance;
@@ -46,4 +47,17 @@ class LocalReportRepository implements ReportRepository {
 
   @override
   Future<void> updateAssignedStaff(String reportId, String staffId) async {}
+  @override
+  Future<PaginatedResult<Report>> getReportsPage({
+    int page = 1,
+    String? status,
+    String? category,
+  }) async {
+    return const PaginatedResult<Report>(
+      items: [],
+      currentPage: 1,
+      lastPage: 1,
+      total: 0,
+    );
+  }
 }

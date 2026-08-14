@@ -503,16 +503,7 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
     final currentUser = ref.watch(currentUserProvider);
     if (currentUser == null) return const SizedBox.shrink();
 
-    final canAssignStaff =
-        currentUser.permissions.contains('assign_staff') ||
-        currentUser.role == UserRole.admin ||
-        currentUser.role == UserRole.managing;
-
-    final canUpdateStatusPermission =
-        currentUser.permissions.contains('update_report_status') ||
-        currentUser.role == UserRole.admin ||
-        currentUser.role == UserRole.managing ||
-        currentUser.role == UserRole.staff;
+    
 
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
@@ -520,8 +511,11 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
 
     final canEdit = _currentReport.canEditReport;
     final canDelete = _currentReport.canDeleteReport;
-    final canChangeStatus = canUpdateStatusPermission;
-    final canAssign = canAssignStaff;
+    final canChangeStatus = _currentReport.canUpdateStatus;
+    final canAssign = _currentReport.canAssignReport;
+
+    final canViewSender = currentUser.permissions.contains('view_users') || 
+                          currentUser.role == UserRole.admin;
 
     return Scaffold(
       backgroundColor: isDarkMode
@@ -780,7 +774,7 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
                     ),
                   ),
                   _buildVerticalTimeline(colorScheme, isDarkMode),
-                  if (canChangeStatus || canAssign)
+                  if (canViewSender)
                     _buildModularCard(
                       colorScheme: colorScheme,
                       isDarkMode: isDarkMode,
@@ -844,7 +838,7 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
                                   : FontWeight.normal,
                             ),
                           ),
-                          if (canAssignStaff)
+                          if (canAssign)
                             OutlinedButton(
                               onPressed: () async {
                                 final selectedStaff = await _showAssignDialog();

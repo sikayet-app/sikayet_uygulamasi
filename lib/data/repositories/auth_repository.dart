@@ -1,5 +1,5 @@
 import '../models/user.dart';
-
+import '../models/paginated_result.dart';
 class AuthResult {
   final User user;
   final String token;
@@ -18,6 +18,7 @@ abstract class AuthRepository {
   Future<User?> getCurrentUser();
   Future<void> logout();
   Future<List<User>> getAllUsers({String? role});
+  Future<PaginatedResult<User>> getUsersPage({int page = 1, String? role});
   Future<User?> getUserById(String userId);
   Future<List<User>> getStaffList();
   Future<List<User>> getManagingList();

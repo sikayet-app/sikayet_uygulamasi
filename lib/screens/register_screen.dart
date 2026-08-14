@@ -4,6 +4,8 @@ import 'package:sikayet_uygulamasi/screens/main_navigation_screen.dart';
 import '../providers/auth_provider.dart';
 import '../core/app_colors.dart';
 import 'login_screen.dart';
+import 'package:flutter/services.dart';
+import 'package:mask_text_input_formatter/mask_text_input_formatter.dart';
 
 class RegisterScreen extends ConsumerStatefulWidget {
   const RegisterScreen({super.key});
@@ -20,6 +22,12 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   String _phoneNumber = '';
   bool _isLoading = false;
   bool _obscurePassword = true;
+
+  var phoneFormatter = MaskTextInputFormatter(
+    mask: '0 (###) ### ## ##',
+    filter: {"#": RegExp(r'[0-9]')},
+    type: MaskAutoCompletionType.lazy,
+  );
 
   Future<void> _submitForm() async {
     if (_formKey.currentState!.validate()) {
@@ -139,19 +147,28 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                     const SizedBox(height: 20),
 
                     _buildAuthField(
-                      label: 'TELEFON (OPSİYONEL)',
-                      hint: '05XX XXX XX XX',
+                      label: 'TELEFON',
+                      hint: '0 (5XX) XXX XX XX',
                       icon: Icons.phone_outlined,
                       keyboardType: TextInputType.phone,
                       textInputAction: TextInputAction.next,
                       colorScheme: colorScheme,
-                      onSaved: (value) => _phoneNumber = value!.trim(),
+                      inputFormatters: [phoneFormatter],
+                      validator: (value) {
+                        if (value == null || value.isEmpty)
+                          return 'Telefon numarası girin';
+                        // Formatlanmış uzunluk tam olarak 17 karakter olmalıdır: "0 (553) 856 98 75"
+                        if (value.length < 17)
+                          return 'Geçerli bir telefon numarası girin';
+                        return null;
+                      },
+                      onSaved: (value) => _phoneNumber = value!,
                     ),
                     const SizedBox(height: 20),
 
                     _buildAuthField(
                       label: 'ŞİFRE',
-                      hint: 'En az 6 karakter',
+                      hint: 'En az 8 karakter',
                       icon: Icons.lock_outline,
                       obscureText: _obscurePassword,
                       colorScheme: colorScheme,
@@ -173,8 +190,8 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                       validator: (value) {
                         if (value == null || value.isEmpty)
                           return 'Şifre oluşturun';
-                        if (value.length < 6)
-                          return 'Şifre en az 6 karakter olmalı';
+                        if (value.length < 8)
+                          return 'Şifre en az 8 karakter olmalı';
                         return null;
                       },
                       onSaved: (value) => _password = value!,
@@ -286,6 +303,7 @@ Widget _buildAuthField({
   void Function(String)? onFieldSubmitted,
   String? Function(String?)? validator,
   void Function(String?)? onSaved,
+  List<TextInputFormatter>? inputFormatters,
 }) {
   return Column(
     crossAxisAlignment: CrossAxisAlignment.start,
@@ -307,6 +325,7 @@ Widget _buildAuthField({
         onFieldSubmitted: onFieldSubmitted,
         validator: validator,
         onSaved: onSaved,
+        inputFormatters: inputFormatters,
         style: TextStyle(
           color: colorScheme.onSurface,
           fontWeight: FontWeight.w500,

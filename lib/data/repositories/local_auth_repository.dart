@@ -4,6 +4,7 @@ import '../models/user.dart';
 import '../local/database_helper.dart';
 import 'package:uuid/uuid.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../models/paginated_result.dart';
 
 class LocalAuthRepository implements AuthRepository {
   final DatabaseHelper _dbHelper = DatabaseHelper.instance;
@@ -145,4 +146,15 @@ class LocalAuthRepository implements AuthRepository {
   Future<void> updateUserRole(String userId, String newRole) async {
     throw UnimplementedError('Bu metot lokalde desteklenmiyor');
   }
+
+  @override
+  Future<PaginatedResult<User>> getUsersPage({int page = 1, String? role}) async {
+    return const PaginatedResult<User>(
+      items: [],
+      currentPage: 1,
+      lastPage: 1,
+      total: 0,
+    );
+  }
+
 }

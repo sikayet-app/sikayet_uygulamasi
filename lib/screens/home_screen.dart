@@ -67,7 +67,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final reportAsync = ref.watch(filteredReportListProvider);
+    final state = ref.watch(filteredReportListProvider);
     final currentStatus = ref.watch(filterStatusProvider);
     final searchResults = ref.watch(mapSearchResultsProvider);
 
@@ -80,8 +80,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         backgroundColor: colorScheme.surface,
         child: const SafeArea(child: FilterDrawerContent()),
       ),
-      body: reportAsync.when(
-        data: (reports) => Stack(
+      body: state.isLoading && state.reports.isEmpty
+      ? const Center(child: CircularProgressIndicator()) 
+      : state.error != null && state.reports.isEmpty
+      ? Center(child: Text('Bildirimler yüklenemedi: ${state.error}'))
+      : Stack(
           children: [
             // HARİTA
             FlutterMap(
@@ -141,7 +144,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     alignment: Alignment.center,
                     padding: const EdgeInsets.all(50),
                     maxZoom: 15,
-                    markers: reports.map((report) {
+                    markers: state.reports.map((report) {
                       final statusColor = colorForStatus(
                         report.status,
                         isDarkMode: isDarkMode,
@@ -541,10 +544,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             ),
           ],
         ),
-        error: (error, StackTrace) =>
-            Center(child: Text('Bildirimler yüklenemedi: $error')),
-        loading: () => const Center(child: CircularProgressIndicator()),
-      ),
+        
     );
   }
 

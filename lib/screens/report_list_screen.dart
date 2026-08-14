@@ -20,34 +20,57 @@ class ReportListScreen extends ConsumerStatefulWidget {
 }
 
 class _ReportListScreenState extends ConsumerState<ReportListScreen> {
+  
+  // sonsuz kaydırma için controller
+  final _scrollController = ScrollController();
+
   @override
   void initState() {
     super.initState();
+
+    // liste aşağı kaydırıldıkça yeni sayfa yüklenmesi için dinleyici
+    _scrollController.addListener(() {
+      if(_scrollController.position.pixels >= _scrollController.position.maxScrollExtent - 200) {
+        ref.read(filteredReportListProvider.notifier).loadMore();
+      }
+    });
     // Ekran açıldığında parametre varsa Riverpod state'ine yazdırıyoruz
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(filterCategoryProvider.notifier).state = null;
-      ref.read(filterStatusProvider.notifier).state = widget.initialStatusFilter;
+      ref.read(filterStatusProvider.notifier).state =
+          widget.initialStatusFilter;
     });
-    }
-  
-
- 
-
-  String _getPageTitle(UserRole? role) {
-    if (role == UserRole.citizen) return 'Taleplerim';
-    if (role == UserRole.staff) return 'Görevlerim';
-    if (role == UserRole.admin || role == UserRole.managing)
-      return 'Tüm Kayıtlar';
-    return 'Bildirim Listesi';
   }
+
+  // controller ı temizle ve filtreleri sıfırla ki diğer ekranlar bozulmasın
+   @override
+  void dispose() {
+    _scrollController.dispose();
+    Future.microtask(() {
+      if (mounted) {
+        ref.read(filterStatusProvider.notifier).state = null;
+        ref.read(filterCategoryProvider.notifier).state = null;
+      }
+    });
+    super.dispose();
+  }
+
+  String _getPageTitle(List<String>? permissions) {
+    if (permissions == null) return 'Bildirim Listesi';
+    if (permissions.contains('view_users')) return 'Tüm Kayıtlar';
+    if (permissions.contains('update_report_status')) return 'Görevlerim';
+    return 'Taleplerim';
+  }
+
 
   @override
   Widget build(BuildContext context) {
-    final reportAsync = ref.watch(filteredReportListProvider);
+    final state = ref.watch(filteredReportListProvider);
     final currentUser = ref.watch(currentUserProvider);
     final currentStatus = ref.watch(filterStatusProvider);
-    final isCitizen = currentUser?.role == UserRole.citizen;
 
+    final useCompactCard =
+        currentUser?.permissions.contains('update_report_status') ?? false;
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
     final isDarkMode = theme.brightness == Brightness.dark;
@@ -78,7 +101,7 @@ class _ReportListScreenState extends ConsumerState<ReportListScreen> {
               ),
             ),
             Text(
-              _getPageTitle(currentUser?.role),
+              _getPageTitle(currentUser?.permissions),
               style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
             ),
           ],
@@ -100,10 +123,13 @@ class _ReportListScreenState extends ConsumerState<ReportListScreen> {
         child: const SafeArea(child: FilterDrawerContent()),
       ),
 
-      floatingActionButton: const Padding(
-        padding: EdgeInsets.only(bottom: 90.0),
-        child: CreateReportFab(),
-      ),
+      floatingActionButton:
+          currentUser?.permissions.contains('add_report') == true
+          ? const Padding(
+              padding: EdgeInsets.only(bottom: 90.0),
+              child: CreateReportFab(),
+            )
+          : null,
       floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
       body: Column(
         children: [
@@ -185,43 +211,57 @@ class _ReportListScreenState extends ConsumerState<ReportListScreen> {
             ),
           ),
           Expanded(
-            child: reportAsync.when(
-              data: (reports) {
-                if (reports.isEmpty) {
-                  return Center(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          Icons.inbox_outlined,
-                          size: 64,
-                          color: colorScheme.outline,
+            child: state.isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : state.error != null
+                    ? Center(
+                        child: Text(
+                          'Bir hata oluştu: ${state.error}',
+                          style: TextStyle(color: colorScheme.error),
                         ),
-                        const SizedBox(height: 12),
-                        Text(
-                          'Henüz bildirim yok',
+                      )
+                    : state.reports.isEmpty
+                        ? Center(
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(
+                                  Icons.inbox_outlined,
+                                  size: 64,
+                                  color: colorScheme.outline,
+                                ),
+                                const SizedBox(height: 12),
+                                Text(
+                                  'Henüz bildirim yok',
                           style: TextStyle(color: colorScheme.onSurfaceVariant),
                         ),
                       ],
                     ),
-                  );
-                }
-                return RefreshIndicator(
+                  )
+                
+                : RefreshIndicator(
                   onRefresh: () async {
-                    ref.invalidate(reportListProvider);
-                    try {
-                      await ref.read(reportListProvider.future);
-                    } catch (_) {}
+                    await ref.read(filteredReportListProvider.notifier).loadFirstPage();
+                              ref.invalidate(reportListProvider);
                   },
                   child: ListView.builder(
+                    controller: _scrollController,
                     padding: const EdgeInsets.only(
                       top: 8,
                       bottom: 120,
                     ), // LİSTE ALT BOŞLUĞU EKLENDİ
-                    itemCount: reports.length,
+                    itemCount: state.reports.length + (state.hasMore ? 1 : 0),
                     itemBuilder: (context, index) {
-                      final report = reports[index];
+
+                      // En alta inildi ve hala sayfa varsa Loading dairesi göster
+                                if (index >= state.reports.length) {
+                                  return const Padding(
+                                    padding: EdgeInsets.symmetric(vertical: 20),
+                                    child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+                                  );
+                                }
+                      final report = state.reports[index];
                       final statusColor = colorForStatus(
                         report.status,
                         isDarkMode: isDarkMode,
@@ -234,12 +274,12 @@ class _ReportListScreenState extends ConsumerState<ReportListScreen> {
                               builder: (context) =>
                                   ReportDetailScreen(report: report),
                             ),
-                         ).then((_) {
-                            // Detaydan geri dönünce listeyi tazele
-                            ref.invalidate(filteredReportListProvider);
+                          ).then((_) {
+                            // Detaydan geri dönünce listeyi 1. sayfadan tazele
+                            ref.read(filteredReportListProvider.notifier).loadFirstPage();
                           });
                         },
-                        child: isCitizen
+                        child: !useCompactCard
                             ? _buildCitizenCard(
                                 report,
                                 statusColor,
@@ -255,17 +295,10 @@ class _ReportListScreenState extends ConsumerState<ReportListScreen> {
                       );
                     },
                   ),
-                );
-              },
-              error: (error, stackTrace) => Center(
-                child: Text(
-                  'Bir hata oluştu: $error',
-                  style: TextStyle(color: colorScheme.error),
                 ),
-              ),
-              loading: () => const Center(child: CircularProgressIndicator()),
-            ),
-          ),
+              
+              
+          ), 
         ],
       ),
     );

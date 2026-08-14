@@ -1,5 +1,5 @@
 import 'dart:convert';
-
+import '../models/paginated_result.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sikayet_uygulamasi/core/api_constants.dart';
@@ -192,6 +192,31 @@ class ApiAuthRepository implements AuthRepository {
       throw Exception(message);
     } catch (e) {
       throw Exception('Beklenmeyen bir hata oluştu: $e');
+    }
+  }
+
+  @override
+  Future<PaginatedResult<User>> getUsersPage({
+    int page = 1,
+    String? role,
+  }) async {
+    try {
+      final queryParams = <String, dynamic>{'page': page};
+      if (role != null) queryParams['role'] = role;
+
+      final response = await _dio.get('/users', queryParameters: queryParams);
+
+      final List<dynamic> data = response.data['data'];
+      final meta = response.data['meta'];
+
+      return PaginatedResult(
+        items: data.map((json) => User.fromMap(json)).toList(),
+        currentPage: meta['current_page'] as int,
+        lastPage: meta['last_page'] as int,
+        total: meta['total'] as int,
+      );
+    } on DioException catch (e) {
+      throw Exception('kullanıcılar sayfalanarak getirilemedi: ${e.message}');
     }
   }
 }

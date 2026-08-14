@@ -1,5 +1,6 @@
 import 'package:dio/dio.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:sikayet_uygulamasi/data/models/paginated_result.dart';
 import '../../core/api_constants.dart';
 import '../models/report.dart';
 import 'report_repository.dart';
@@ -39,6 +40,28 @@ class ApiReportRepository implements ReportRepository {
     final response = await _dio.get('/reports', queryParameters: queryParams);
     final List<dynamic> data = response.data['data'];
     return data.map((json) => Report.fromMap(json)).toList();
+  }
+
+  @override
+  Future<PaginatedResult<Report>> getReportsPage({
+    int page = 1,
+    String? status,
+    String? category,
+  }) async {
+    final queryParams = <String, dynamic>{'page': page};
+    if(status != null) queryParams['status'] = status;
+    if(category != null) queryParams['category'] = category;
+
+    final response = await _dio.get('/reports', queryParameters: queryParams);
+    final List<dynamic> data = response.data['data'];
+    final meta = response.data['meta'];
+
+    return PaginatedResult(
+    items: data.map((json) => Report.fromMap(json)).toList(), 
+    currentPage: meta['current_page'] as int, 
+    lastPage: meta['last_page'] as int, 
+    total: meta['total'] as int,
+    );
   }
 
   @override

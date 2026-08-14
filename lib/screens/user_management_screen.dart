@@ -6,11 +6,39 @@ import '../widgets/app_card.dart';
 import '../core/report_ui_helpers.dart';
 import '../core/app_colors.dart';
 
-class UserManagementScreen extends ConsumerWidget {
+class UserManagementScreen extends ConsumerStatefulWidget {
   const UserManagementScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<UserManagementScreen> createState() =>
+      _UserManagementScreenState();
+}
+
+class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
+  final _scrollController = ScrollController();
+
+  @override
+  void initState() {
+    super.initState();
+    _scrollController.addListener(() {
+      if (_scrollController.position.pixels >=
+          _scrollController.position.maxScrollExtent - 200) {
+        ref.read(filteredUserListProvider.notifier).loadMore();
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    Future.microtask(() {
+      if (mounted) ref.read(filterUserProvider.notifier).state = null;
+    });
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final currentUser = ref.watch(currentUserProvider);
     if (currentUser == null) return const SizedBox.shrink();
 
@@ -19,13 +47,16 @@ class UserManagementScreen extends ConsumerWidget {
     final isDarkMode = theme.brightness == Brightness.dark;
 
     final canEditUsers = currentUser.permissions.contains('edit_users');
-    final canManageAdmins = currentUser.permissions.contains('manage_admins');
+    final canDeleteUsers = currentUser.permissions.contains('delete_users');
+    final isAdmin = currentUser.role == UserRole.admin;
+    final isManaging = currentUser.role == UserRole.managing;
+    final canManageRoles = isAdmin || isManaging;
 
-    List<UserRole> allowedFilterRoles = canManageAdmins
+    List<UserRole> allowedFilterRoles = isAdmin
         ? [UserRole.managing, UserRole.staff, UserRole.citizen]
         : [UserRole.staff, UserRole.citizen];
 
-    final userAsync = ref.watch(filteredUserListProvider);
+    final state = ref.watch(filteredUserListProvider);
 
     return Scaffold(
       backgroundColor: isDarkMode
@@ -52,10 +83,17 @@ class UserManagementScreen extends ConsumerWidget {
           child: UserFilterDrawerContent(allowedRoles: allowedFilterRoles),
         ),
       ),
-      body: userAsync.when(
-        data: (users) {
-          if (users.isEmpty) {
-            return Center(
+      body: state.isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : state.error != null
+          ? Center(
+              child: Text(
+                'Hata: ${state.error}',
+                style: TextStyle(color: colorScheme.error),
+              ),
+            )
+          : state.users.isEmpty
+          ? Center(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -69,190 +107,330 @@ class UserManagementScreen extends ConsumerWidget {
                   const Text('Liste boş'),
                 ],
               ),
-            );
-          }
-          return RefreshIndicator(
-            onRefresh: () async {
-              ref.invalidate(
-                canManageAdmins ? managingListProvider : staffListProvider,
-              );
-              try {
-                await ref.read(
-                  (canManageAdmins ? managingListProvider : staffListProvider)
-                      .future,
-                );
-              } catch (_) {}
-            },
-            child: ListView.builder(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 16.0,
-                vertical: 16.0,
-              ),
-              itemCount: users.length,
-              itemBuilder: (context, index) {
-                final user = users[index];
-                final isSelf = user.id == currentUser.id;
-                final roleColor = getColorForRole(
-                  user.role,
-                  isDarkMode: isDarkMode,
-                );
+            )
+          : RefreshIndicator(
+              onRefresh: () async {
+                // ana listeyi 1.sayfadan tekrar yükle
+                await ref
+                    .read(filteredUserListProvider.notifier)
+                    .loadFirstPage();
+                ref.invalidate(managingListProvider);
+                ref.invalidate(staffListProvider);
 
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: 12.0),
-                  child: AppCard(
-                    padding: EdgeInsets.zero,
-                    child: ListTile(
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 8,
-                      ),
-                      leading: CircleAvatar(
-                        backgroundColor: roleColor,
-                        child: Text(
-                          getInitials(user.name),
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                      title: Text(
-                        user.name,
-                        style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16,
-                        ),
-                      ),
-                      subtitle: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const SizedBox(height: 4),
-                          Text(
-                            user.email,
-                            style: TextStyle(
-                              color: colorScheme.onSurfaceVariant,
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 4,
-                            ),
-                            decoration: BoxDecoration(
-                              color: roleColor.withValues(alpha: 0.15),
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                            child: Text(
-                              getRoleLabel(user.role),
-                              style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600,
-                                color: roleColor,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-
-                      trailing:
-                          (!canEditUsers ||
-                              isSelf ||
-                              user.role == UserRole.citizen)
-                          ? null
-                          : IconButton(
-                              icon: Icon(
-                                Icons.person_remove,
-                                color: colorScheme.error,
-                              ),
-                              onPressed: () {
-                                showDialog(
-                                  context: context,
-                                  builder: (context) {
-                                    return AlertDialog(
-                                      title: const Text('Yetkiyi Al'),
-                                      content: Text(
-                                        '${user.name} isimli kullanıcının yetkisini almak istediğinize emin misiniz?',
-                                      ),
-                                      actions: [
-                                        TextButton(
-                                          onPressed: () =>
-                                              Navigator.pop(context),
-                                          child: const Text('İptal'),
-                                        ),
-                                        ElevatedButton(
-                                          style: ElevatedButton.styleFrom(
-                                            backgroundColor: colorScheme.error,
-                                            foregroundColor:
-                                                colorScheme.onError,
-                                          ),
-                                          onPressed: () async {
-                                            try {
-                                              await ref
-                                                  .read(authRepositoryProvider)
-                                                  .updateUserRole(
-                                                    user.id,
-                                                    UserRole.citizen.name,
-                                                  );
-                                              ref.invalidate(
-                                                managingListProvider,
-                                              );
-                                              ref.invalidate(staffListProvider);
-                                              ref.invalidate(
-                                                citizenListProvider,
-                                              );
-                                              ref.invalidate(
-                                                filteredUserListProvider,
-                                              );
-                                              if (context.mounted) {
-                                                ScaffoldMessenger.of(
-                                                  context,
-                                                ).showSnackBar(
-                                                  const SnackBar(
-                                                    content: Text(
-                                                      'Kullanıcı rolü başarıyla güncellendi',
-                                                    ),
-                                                  ),
-                                                );
-                                                Navigator.pop(context);
-                                              }
-                                            } catch (e) {
-                                              if (context.mounted) {
-                                                ScaffoldMessenger.of(
-                                                  context,
-                                                ).showSnackBar(
-                                                  SnackBar(
-                                                    content: Text('Hata: $e'),
-                                                  ),
-                                                );
-                                              }
-                                            }
-                                          },
-                                          child: const Text('Onayla'),
-                                        ),
-                                      ],
-                                    );
-                                  },
-                                );
-                              },
-                            ),
-                    ),
-                  ),
-                );
+                try {
+                  if (isAdmin) await ref.read(managingListProvider.future);
+                  await ref.read(staffListProvider.future);
+                } catch (_) {}
               },
+              child: ListView.builder(
+                controller: _scrollController,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16.0,
+                  vertical: 16.0,
+                ),
+                itemCount: state.users.length + (state.hasMore ? 1 : 0),
+                itemBuilder: (context, index) {
+                  if (index >= state.users.length) {
+                    return const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 20),
+                      child: Center(
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
+                    );
+                  }
+                  final user = state.users[index];
+                  final isSelf = user.id == currentUser.id;
+                  final roleColor = getColorForRole(
+                    user.role,
+                    isDarkMode: isDarkMode,
+                  );
+
+                  bool canDemote = false;
+                  if (canManageRoles &&
+                      !isSelf &&
+                      user.role != UserRole.citizen) {
+                    if (isAdmin) {
+                      canDemote = true; // Admin vatandaşa kadar herkesi düşürür
+                    } else if (isManaging && user.role == UserRole.staff) {
+                      canDemote = true; // Managing sadece staff'ı düşürür
+                    }
+                  }
+
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 12.0),
+                    child: AppCard(
+                      padding: EdgeInsets.zero,
+                      child: ListTile(
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 8,
+                        ),
+                        leading: CircleAvatar(
+                          backgroundColor: roleColor,
+                          child: Text(
+                            getInitials(user.name),
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                        title: Text(
+                          user.name,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                          ),
+                        ),
+                        subtitle: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const SizedBox(height: 4),
+                            Text(
+                              user.email,
+                              style: TextStyle(
+                                color: colorScheme.onSurfaceVariant,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 4,
+                              ),
+                              decoration: BoxDecoration(
+                                color: roleColor.withValues(alpha: 0.15),
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                              child: Text(
+                                getRoleLabel(user.role),
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                  color: roleColor,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+
+                        trailing: (isSelf || (!canDemote && canDeleteUsers))
+                            ? null
+                            : PopupMenuButton<String>(
+                                icon: Icon(
+                                  Icons.more_vert,
+                                  color: colorScheme.onSurfaceVariant,
+                                ),
+                                onSelected: (value) {
+                                  if (value == 'demote') {
+                                    showDialog(
+                                      context: context,
+                                      builder: (context) {
+                                        return AlertDialog(
+                                          title: const Text('Yetkiyi Al'),
+                                          content: Text(
+                                            '${user.name} isimli kullanıcının yetkisini almak istediğinize emin misiniz?',
+                                          ),
+                                          actions: [
+                                            TextButton(
+                                              onPressed: () =>
+                                                  Navigator.pop(context),
+                                              child: const Text('İptal'),
+                                            ),
+                                            ElevatedButton(
+                                              style: ElevatedButton.styleFrom(
+                                                backgroundColor:
+                                                    colorScheme.error,
+                                                foregroundColor:
+                                                    colorScheme.onError,
+                                              ),
+                                              onPressed: () async {
+                                                try {
+                                                  await ref
+                                                      .read(
+                                                        authRepositoryProvider,
+                                                      )
+                                                      .updateUserRole(
+                                                        user.id,
+                                                        UserRole.citizen.name,
+                                                      );
+                                                  // İşlem bitince kendi provider'ını 1. sayfadan tazele
+                                                  ref
+                                                      .read(
+                                                        filteredUserListProvider
+                                                            .notifier,
+                                                      )
+                                                      .loadFirstPage();
+                                                  ref.invalidate(
+                                                    managingListProvider,
+                                                  );
+                                                  ref.invalidate(
+                                                    staffListProvider,
+                                                  );
+                                                  ref.invalidate(
+                                                    citizenListProvider,
+                                                  );
+
+                                                  if (context.mounted) {
+                                                    ScaffoldMessenger.of(
+                                                      context,
+                                                    ).showSnackBar(
+                                                      const SnackBar(
+                                                        content: Text(
+                                                          'Kullanıcı rolü başarıyla güncellendi',
+                                                        ),
+                                                      ),
+                                                    );
+                                                    Navigator.pop(context);
+                                                  }
+                                                } catch (e) {
+                                                  if (context.mounted) {
+                                                    ScaffoldMessenger.of(
+                                                      context,
+                                                    ).showSnackBar(
+                                                      SnackBar(
+                                                        content: Text(
+                                                          'Hata: $e',
+                                                        ),
+                                                      ),
+                                                    );
+                                                  }
+                                                }
+                                              },
+                                              child: const Text('Onayla'),
+                                            ),
+                                          ],
+                                        );
+                                      },
+                                    );
+                                  } else if (value == 'delete') {
+                                    showDialog(
+                                      context: context,
+                                      builder: (context) {
+                                        return AlertDialog(
+                                          title: const Text(
+                                            'Kullanıcıyı Sil',
+                                            style: TextStyle(color: Colors.red),
+                                          ),
+                                          content: Text(
+                                            '${user.name} isimli kullanıcıyı tamamen silmek istediğinize emin misiniz? Bu işlem geri alınamaz!',
+                                          ),
+                                          actions: [
+                                            TextButton(
+                                              onPressed: () =>
+                                                  Navigator.pop(context),
+                                              child: const Text('İptal'),
+                                            ),
+                                            ElevatedButton(
+                                              style: ElevatedButton.styleFrom(
+                                                backgroundColor:
+                                                    colorScheme.error,
+                                                foregroundColor:
+                                                    colorScheme.onError,
+                                              ),
+                                              onPressed: () async {
+                                                try {
+                                                  await ref
+                                                      .read(
+                                                        authRepositoryProvider,
+                                                      )
+                                                      .deleteUser(user.id);
+                                                  ref
+                                                      .read(
+                                                        filteredUserListProvider
+                                                            .notifier,
+                                                      )
+                                                      .loadFirstPage();
+                                                  ref.invalidate(
+                                                    managingListProvider,
+                                                  );
+                                                  ref.invalidate(
+                                                    staffListProvider,
+                                                  );
+                                                  ref.invalidate(
+                                                    citizenListProvider,
+                                                  );
+                                                  if (context.mounted) {
+                                                    ScaffoldMessenger.of(
+                                                      context,
+                                                    ).showSnackBar(
+                                                      const SnackBar(
+                                                        content: Text(
+                                                          'Kullanıcı başarıyla silindi',
+                                                        ),
+                                                      ),
+                                                    );
+                                                    Navigator.pop(context);
+                                                  }
+                                                } catch (e) {
+                                                  if (context.mounted) {
+                                                    ScaffoldMessenger.of(
+                                                      context,
+                                                    ).showSnackBar(
+                                                      SnackBar(
+                                                        content: Text(
+                                                          'Silinirken hata oluştu: $e',
+                                                        ),
+                                                      ),
+                                                    );
+                                                  }
+                                                }
+                                              },
+                                              child: const Text('Sil'),
+                                            ),
+                                          ],
+                                        );
+                                      },
+                                    );
+                                  }
+                                },
+                                itemBuilder: (context) => [
+                                  // Sadece yetkisi olanları (personel, sorumlu) düşürebiliriz
+                                  if (canDemote)
+                                    const PopupMenuItem(
+                                      value: 'demote',
+                                      child: Row(
+                                        children: [
+                                          Icon(Icons.arrow_downward, size: 20),
+                                          SizedBox(width: 12),
+                                          Text('Yetkiyi Al'),
+                                        ],
+                                      ),
+                                    ),
+                                  // Silme yetkisi varsa "Sil" butonu görünür
+                                  if (canDeleteUsers)
+                                    PopupMenuItem(
+                                      value: 'delete',
+                                      child: Row(
+                                        children: [
+                                          Icon(
+                                            Icons.person_remove,
+                                            size: 20,
+                                            color: Colors.red,
+                                          ),
+                                          SizedBox(width: 12),
+                                          Text(
+                                            'Sil',
+                                            style: TextStyle(color: Colors.red),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                ],
+                              ),
+                      ),
+                    ),
+                  );
+                },
+              ),
             ),
-          );
-        },
-        error: (err, stack) => Center(child: Text('Bir hata oluştu: $err')),
-        loading: () => const Center(child: CircularProgressIndicator()),
-      ),
-      floatingActionButton: canEditUsers
+      floatingActionButton: (canManageRoles && canEditUsers)
           ? FloatingActionButton.extended(
               heroTag: 'user_manage_fab',
               backgroundColor: colorScheme.primary,
               foregroundColor: colorScheme.onPrimary,
               onPressed: () {
-                final roleToCreate = canManageAdmins
+                final roleToCreate = isAdmin
                     ? UserRole.managing
                     : UserRole.staff;
                 showModalBottomSheet(
@@ -269,7 +447,7 @@ class UserManagementScreen extends ConsumerWidget {
                 );
               },
               icon: const Icon(Icons.person_add),
-              label: Text(canManageAdmins ? 'Sorumlu Ekle' : 'Personel Ekle'),
+              label: Text(isAdmin ? 'Sorumlu Ekle' : 'Personel Ekle'),
             )
           : null,
     );
@@ -553,6 +731,12 @@ class _CitizenSelectionSheetState extends ConsumerState<CitizenSelectionSheet> {
                                                     user.id,
                                                     widget.targetRole.name,
                                                   );
+                                              ref
+                                                  .read(
+                                                    filteredUserListProvider
+                                                        .notifier,
+                                                  )
+                                                  .loadFirstPage();
                                               ref.invalidate(
                                                 managingListProvider,
                                               );
@@ -560,9 +744,7 @@ class _CitizenSelectionSheetState extends ConsumerState<CitizenSelectionSheet> {
                                               ref.invalidate(
                                                 citizenListProvider,
                                               );
-                                              ref.invalidate(
-                                                filteredUserListProvider,
-                                              );
+
                                               if (context.mounted) {
                                                 ScaffoldMessenger.of(
                                                   context,

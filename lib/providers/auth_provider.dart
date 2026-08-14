@@ -59,9 +59,104 @@ final citizenListProvider = FutureProvider<List<User>>((ref) async {
 
 final filterUserProvider = StateProvider<UserRole?>((ref) => null);
 
-final filteredUserListProvider = FutureProvider<List<User>>((ref) async {
-  final authRepo = ref.watch(authRepositoryProvider);
-  final selectedRole = ref.watch(filterUserProvider);
-  return authRepo.getAllUsers(role: selectedRole?.name);
-});
+class UserListState {
+  final List<User> users;
+  final int currentPage;
+  final bool hasMore;
+  final bool isLoading;
+  final bool isLoadingMore;
+  final Object? error;
 
+  const UserListState({
+    this.users = const [],
+    this.currentPage = 0,
+    this.hasMore = true,
+    this.isLoading = false,
+    this.isLoadingMore = false,
+    this.error,
+  });
+
+  UserListState copyWith({
+    List<User>? users,
+    int? currentPage,
+    bool? hasMore,
+    bool? isLoading,
+    bool? isLoadingMore,
+    Object? error,
+  }) {
+    return UserListState(
+      users: users ?? this.users,
+      currentPage: currentPage ?? this.currentPage,
+      hasMore: hasMore ?? this.hasMore,
+      isLoading: isLoading ?? this.isLoading,
+      isLoadingMore: isLoadingMore ?? this.isLoadingMore,
+      error: error,
+    );
+  }
+}
+
+class FilteredUserListNotifier extends StateNotifier<UserListState> {
+  final Ref _ref;
+
+  FilteredUserListNotifier(this._ref) : super(const UserListState()) {
+    loadFirstPage();
+  }
+
+  Future<void> loadFirstPage() async {
+    state = const UserListState(isLoading: true);
+    try {
+      final repo = _ref.read(authRepositoryProvider);
+      final role = _ref.read(filterUserProvider);
+
+      final result = await repo.getUsersPage(page: 1, role: role?.name);
+
+      state = UserListState(
+        users: result.items,
+        currentPage: result.currentPage,
+        hasMore: result.hasMore,
+        isLoading: false,
+      );
+    } catch (e) {
+      state = UserListState(error: e, isLoading: false);
+    }
+  }
+
+  Future<void> loadMore() async {
+    if (state.isLoadingMore || !state.hasMore || state.isLoading) return;
+
+    state = state.copyWith(isLoadingMore: true);
+    try {
+      final repo = _ref.read(authRepositoryProvider);
+      final role = _ref.read(filterUserProvider);
+
+      final result = await repo.getUsersPage(
+        page: state.currentPage + 1,
+        role: role?.name,
+      );
+
+      state = state.copyWith(
+        users: [...state.users, ...result.items],
+        currentPage: result.currentPage,
+        hasMore: result.hasMore,
+        isLoadingMore: false,
+      );
+    } catch (e) {
+      state = state.copyWith(isLoadingMore: false, error: e);
+    }
+  }
+}
+
+final filteredUserListProvider =
+    StateNotifierProvider.autoDispose<FilteredUserListNotifier, UserListState>((
+      ref,
+    ) {
+      final notifier = FilteredUserListNotifier(ref);
+
+      // Filtre her değiştiğinde listeyi en baştan yükle
+      ref.listen<UserRole?>(
+        filterUserProvider,
+        (_, __) => notifier.loadFirstPage(),
+      );
+
+      return notifier;
+    });
