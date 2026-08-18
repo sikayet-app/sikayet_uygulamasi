@@ -14,7 +14,7 @@ Color colorForStatus(ReportStatus status, {bool isDarkMode = false}) {
       return isDarkMode ? AppColors.resolvedFgDark : AppColors.resolvedFg;
     case ReportStatus.rejected:
       return isDarkMode ? AppColors.rejectedFgDark : AppColors.rejectedFg;
-    case ReportStatus.invalid:
+    case ReportStatus.unfounded:
       return isDarkMode ? AppColors.invalidFgDark : AppColors.invalidFg;
 }
 }
@@ -29,7 +29,7 @@ Color getStatusBgColor(ReportStatus status, {bool isDarkMode = false}) {
     case ReportStatus.inProgress: return AppColors.inProgressBg;
     case ReportStatus.resolved: return AppColors.resolvedBg;
     case ReportStatus.rejected: return AppColors.rejectedBg;
-    case ReportStatus.invalid: return AppColors.invalidBg;
+    case ReportStatus.unfounded: return AppColors.invalidBg;
   }
 }
 

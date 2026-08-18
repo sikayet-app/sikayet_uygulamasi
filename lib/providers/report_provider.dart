@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:sikayet_uygulamasi/data/models/stats.dart';
 import '../data/models/paginated_result.dart';
 import 'package:sikayet_uygulamasi/providers/auth_provider.dart';
 import '../data/repositories/local_report_repository.dart';
@@ -226,3 +227,19 @@ final mapSearchResultsProvider = Provider.autoDispose<List<Report>>((ref) {
       .take(5)
       .toList();
 });
+
+final dashboardStatsProvider = FutureProvider.autoDispose<DashboardStats>((ref) async {
+  final repository = ref. watch(reportRepositoryProvider);
+  return await repository.getDashboardStats();
+});
+
+final myStatsProvider = FutureProvider.autoDispose<MyStats>((ref) async {
+  final repository = ref.watch(reportRepositoryProvider);
+  return await repository.getMyStats();
+});
+
+// haritada belirli bir şikayete odaklanmak için kullanılaracak haberci state
+final mapFocusProvider = StateProvider<Report?>((ref) => null);
+
+// Alt bardaki sekmelerin indeksini kontrol eden Provider (0: Harita, 1: Liste, vs.)
+final currentTabIndexProvider = StateProvider<int>((ref) => 0);

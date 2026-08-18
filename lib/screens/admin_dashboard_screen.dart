@@ -16,7 +16,7 @@ class AdminDashboardScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final reportAsync = ref.watch(reportListProvider);
+    final dashboardStatsAsync = ref.watch(dashboardStatsProvider);
     final colorScheme = Theme.of(context).colorScheme;
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
     final user = ref.watch(currentUserProvider);
@@ -26,7 +26,9 @@ class AdminDashboardScreen extends ConsumerWidget {
     final canManageUsers = user?.permissions.contains('view_users') ?? false;
 
     return Scaffold(
-      backgroundColor: isDarkMode ? colorScheme.surface : AppColors.surfaceWarmLight,
+      backgroundColor: isDarkMode
+          ? colorScheme.surface
+          : AppColors.surfaceWarmLight,
       appBar: AppBar(
         title: Column(
           children: [
@@ -49,21 +51,23 @@ class AdminDashboardScreen extends ConsumerWidget {
         elevation: 0,
         backgroundColor: Colors.transparent,
       ),
-      body: reportAsync.when(
+      body: dashboardStatsAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (err, stack) => Center(child: Text('Bir hata oluştu: $err')),
-        data: (reports) {
-          final total = reports.length;
-          final pending = reports.where((r) => r.status == ReportStatus.pending).length;
-          final inProgress = reports.where((r) => r.status == ReportStatus.inProgress).length;
-          final resolved = reports.where((r) => r.status == ReportStatus.resolved).length;
-          final rejected = reports.where((r) => r.status == ReportStatus.rejected).length;
-          final invalid = reports.where((r) => r.status == ReportStatus.invalid).length;
+        data: (stats) {
+          final total = stats.totalReports;
+          final pending = stats.pendingReports;
+          final inProgress = stats.inProgressReports;
+          final resolved = stats.resolvedReports;
+          final rejected = stats.rejectedReports;
+          final unfounded = stats.unfoundedReports;
 
           return RefreshIndicator(
             onRefresh: () async {
-              ref.invalidate(reportListProvider);
-              try { await ref.read(reportListProvider.future); } catch (_) {}
+              ref.invalidate(dashboardStatsProvider);
+              try {
+                await ref.read(dashboardStatsProvider.future);
+              } catch (_) {}
             },
             child: SingleChildScrollView(
               physics: const AlwaysScrollableScrollPhysics(),
@@ -80,14 +84,16 @@ class AdminDashboardScreen extends ConsumerWidget {
                           _buildActionTile(
                             icon: Icons.person_add_alt_1_outlined,
                             title: 'Şikayetler ve İş Atama',
-                            subtitle: 'Bekleyen şikayetleri personellere yönlendirin',
+                            subtitle:
+                                'Bekleyen şikayetleri personellere yönlendirin',
                             colorScheme: colorScheme,
                             isDarkMode: isDarkMode,
                             onTap: () {
                               Navigator.push(
                                 context,
                                 MaterialPageRoute(
-                                  builder: (context) => const ReportAssignmentScreen(),
+                                  builder: (context) =>
+                                      const ReportAssignmentScreen(),
                                 ),
                               ).then((_) => ref.invalidate(reportListProvider));
                             },
@@ -96,20 +102,24 @@ class AdminDashboardScreen extends ConsumerWidget {
                           Divider(
                             height: 1,
                             indent: 72,
-                            color: colorScheme.outlineVariant.withValues(alpha: 0.5),
+                            color: colorScheme.outlineVariant.withValues(
+                              alpha: 0.5,
+                            ),
                           ),
                         if (canManageUsers)
                           _buildActionTile(
                             icon: Icons.people_outline,
                             title: 'Kullanıcı Yönetimi',
-                            subtitle: 'Kullanıcıları, personelleri ve yetkileri düzenleyin',
+                            subtitle:
+                                'Kullanıcıları, personelleri ve yetkileri düzenleyin',
                             colorScheme: colorScheme,
                             isDarkMode: isDarkMode,
                             onTap: () {
                               Navigator.push(
                                 context,
                                 MaterialPageRoute(
-                                  builder: (context) => const UserManagementScreen(),
+                                  builder: (context) =>
+                                      const UserManagementScreen(),
                                 ),
                               );
                             },
@@ -118,7 +128,7 @@ class AdminDashboardScreen extends ConsumerWidget {
                     ),
                   ),
                   const SizedBox(height: 32),
-                  
+
                   _buildSectionOverline('GENEL İSTATİSTİKLER', colorScheme),
                   GridView.count(
                     crossAxisCount: 2,
@@ -151,9 +161,15 @@ class AdminDashboardScreen extends ConsumerWidget {
                         'Yeni / Bekleyen',
                         pending.toString(),
                         Icons.inbox_outlined,
-                        colorForStatus(ReportStatus.pending, isDarkMode: isDarkMode),
+                        colorForStatus(
+                          ReportStatus.pending,
+                          isDarkMode: isDarkMode,
+                        ),
                         isDarkMode,
-                        bgColor: getStatusBgColor(ReportStatus.pending, isDarkMode: isDarkMode),
+                        bgColor: getStatusBgColor(
+                          ReportStatus.pending,
+                          isDarkMode: isDarkMode,
+                        ),
                         onTap: () {
                           Navigator.push(
                             context,
@@ -169,9 +185,15 @@ class AdminDashboardScreen extends ConsumerWidget {
                         'Sahada (İşlemde)',
                         inProgress.toString(),
                         Icons.engineering_outlined,
-                        colorForStatus(ReportStatus.inProgress, isDarkMode: isDarkMode),
+                        colorForStatus(
+                          ReportStatus.inProgress,
+                          isDarkMode: isDarkMode,
+                        ),
                         isDarkMode,
-                        bgColor: getStatusBgColor(ReportStatus.inProgress, isDarkMode: isDarkMode),
+                        bgColor: getStatusBgColor(
+                          ReportStatus.inProgress,
+                          isDarkMode: isDarkMode,
+                        ),
                         onTap: () {
                           Navigator.push(
                             context,
@@ -187,9 +209,15 @@ class AdminDashboardScreen extends ConsumerWidget {
                         'Çözüldü',
                         resolved.toString(),
                         Icons.check_circle_outline,
-                        colorForStatus(ReportStatus.resolved, isDarkMode: isDarkMode),
+                        colorForStatus(
+                          ReportStatus.resolved,
+                          isDarkMode: isDarkMode,
+                        ),
                         isDarkMode,
-                        bgColor: getStatusBgColor(ReportStatus.resolved, isDarkMode: isDarkMode),
+                        bgColor: getStatusBgColor(
+                          ReportStatus.resolved,
+                          isDarkMode: isDarkMode,
+                        ),
                         onTap: () {
                           Navigator.push(
                             context,
@@ -224,23 +252,76 @@ class AdminDashboardScreen extends ConsumerWidget {
                                       centerSpaceRadius: 40,
                                       sections: [
                                         if (resolved > 0)
-                                          PieChartSectionData(color: colorForStatus(ReportStatus.resolved, isDarkMode: isDarkMode), value: resolved.toDouble(), showTitle: false, radius: 20),
+                                          PieChartSectionData(
+                                            color: colorForStatus(
+                                              ReportStatus.resolved,
+                                              isDarkMode: isDarkMode,
+                                            ),
+                                            value: resolved.toDouble(),
+                                            showTitle: false,
+                                            radius: 20,
+                                          ),
                                         if (inProgress > 0)
-                                          PieChartSectionData(color: colorForStatus(ReportStatus.inProgress, isDarkMode: isDarkMode), value: inProgress.toDouble(), showTitle: false, radius: 20),
+                                          PieChartSectionData(
+                                            color: colorForStatus(
+                                              ReportStatus.inProgress,
+                                              isDarkMode: isDarkMode,
+                                            ),
+                                            value: inProgress.toDouble(),
+                                            showTitle: false,
+                                            radius: 20,
+                                          ),
                                         if (pending > 0)
-                                          PieChartSectionData(color: colorForStatus(ReportStatus.pending, isDarkMode: isDarkMode), value: pending.toDouble(), showTitle: false, radius: 20),
+                                          PieChartSectionData(
+                                            color: colorForStatus(
+                                              ReportStatus.pending,
+                                              isDarkMode: isDarkMode,
+                                            ),
+                                            value: pending.toDouble(),
+                                            showTitle: false,
+                                            radius: 20,
+                                          ),
                                         if (rejected > 0)
-                                          PieChartSectionData(color: colorForStatus(ReportStatus.rejected, isDarkMode: isDarkMode), value: rejected.toDouble(), showTitle: false, radius: 20),
-                                        if (invalid > 0)
-                                          PieChartSectionData(color: colorForStatus(ReportStatus.invalid, isDarkMode: isDarkMode), value: invalid.toDouble(), showTitle: false, radius: 20),
+                                          PieChartSectionData(
+                                            color: colorForStatus(
+                                              ReportStatus.rejected,
+                                              isDarkMode: isDarkMode,
+                                            ),
+                                            value: rejected.toDouble(),
+                                            showTitle: false,
+                                            radius: 20,
+                                          ),
+                                        if (unfounded > 0)
+                                          PieChartSectionData(
+                                            color: colorForStatus(
+                                              ReportStatus.unfounded,
+                                              isDarkMode: isDarkMode,
+                                            ),
+                                            value: unfounded.toDouble(),
+                                            showTitle: false,
+                                            radius: 20,
+                                          ),
                                       ],
                                     ),
                                   ),
                                   Column(
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
-                                      Text(total.toString(), style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: colorScheme.onSurface)),
-                                      Text('Kayıt', style: TextStyle(fontSize: 10, color: colorScheme.onSurfaceVariant)),
+                                      Text(
+                                        total.toString(),
+                                        style: TextStyle(
+                                          fontSize: 20,
+                                          fontWeight: FontWeight.bold,
+                                          color: colorScheme.onSurface,
+                                        ),
+                                      ),
+                                      Text(
+                                        'Kayıt',
+                                        style: TextStyle(
+                                          fontSize: 10,
+                                          color: colorScheme.onSurfaceVariant,
+                                        ),
+                                      ),
                                     ],
                                   ),
                                 ],
@@ -253,13 +334,60 @@ class AdminDashboardScreen extends ConsumerWidget {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                _buildLegendItem('Çözüldü', resolved, total, colorForStatus(ReportStatus.resolved, isDarkMode: isDarkMode), colorScheme),
+                                _buildLegendItem(
+                                  'Çözüldü',
+                                  resolved,
+                                  total,
+                                  colorForStatus(
+                                    ReportStatus.resolved,
+                                    isDarkMode: isDarkMode,
+                                  ),
+                                  colorScheme,
+                                ),
                                 const SizedBox(height: 8),
-                                _buildLegendItem('İşlemde', inProgress, total, colorForStatus(ReportStatus.inProgress, isDarkMode: isDarkMode), colorScheme),
+                                _buildLegendItem(
+                                  'İşlemde',
+                                  inProgress,
+                                  total,
+                                  colorForStatus(
+                                    ReportStatus.inProgress,
+                                    isDarkMode: isDarkMode,
+                                  ),
+                                  colorScheme,
+                                ),
                                 const SizedBox(height: 8),
-                                _buildLegendItem('Bekliyor', pending, total, colorForStatus(ReportStatus.pending, isDarkMode: isDarkMode), colorScheme),
-                                if (rejected > 0) _buildLegendItem('Reddedildi', rejected, total, colorForStatus(ReportStatus.rejected, isDarkMode: isDarkMode), colorScheme),
-                                if (invalid > 0) _buildLegendItem('Asılsız', invalid, total, colorForStatus(ReportStatus.invalid, isDarkMode: isDarkMode), colorScheme),
+                                _buildLegendItem(
+                                  'Bekliyor',
+                                  pending,
+                                  total,
+                                  colorForStatus(
+                                    ReportStatus.pending,
+                                    isDarkMode: isDarkMode,
+                                  ),
+                                  colorScheme,
+                                ),
+                                if (rejected > 0)
+                                  _buildLegendItem(
+                                    'Reddedildi',
+                                    rejected,
+                                    total,
+                                    colorForStatus(
+                                      ReportStatus.rejected,
+                                      isDarkMode: isDarkMode,
+                                    ),
+                                    colorScheme,
+                                  ),
+                                if (unfounded > 0)
+                                  _buildLegendItem(
+                                    'Asılsız',
+                                    unfounded,
+                                    total,
+                                    colorForStatus(
+                                      ReportStatus.unfounded,
+                                      isDarkMode: isDarkMode,
+                                    ),
+                                    colorScheme,
+                                  ),
                               ],
                             ),
                           ),
@@ -267,12 +395,62 @@ class AdminDashboardScreen extends ConsumerWidget {
                       ),
                     ),
                   const SizedBox(height: 32),
+
+                  _buildSectionOverline('KULLANICI BİLGİLERİ', colorScheme),
+                  AppCard(
+                    padding: const EdgeInsets.all(24),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceAround,
+                      children: [
+                        _buildUserStat(
+                          'Sorumlu',
+                          stats.managingCount,
+                          Colors.purple,
+                        ),
+                        _buildUserStat(
+                          'Personel',
+                          stats.staffCount,
+                          Colors.indigo,
+                        ),
+                        _buildUserStat(
+                          'Vatandaş',
+                          stats.citizenCount,
+                          Colors.teal,
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 32),
                 ],
               ),
             ),
           );
         },
       ),
+    );
+  }
+
+  Widget _buildUserStat(String label, int count, Color color) {
+    return Column(
+      children: [
+        Text(
+          count.toString(),
+          style: TextStyle(
+            fontSize: 24,
+            fontWeight: FontWeight.bold,
+            color: color,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          label,
+          style: const TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+            color: Colors.grey,
+          ),
+        ),
+      ],
     );
   }
 
@@ -396,7 +574,9 @@ class AdminDashboardScreen extends ConsumerWidget {
       leading: Container(
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: isDarkMode ? AppColors.navy : colorScheme.surfaceContainerHighest,
+          color: isDarkMode
+              ? AppColors.navy
+              : colorScheme.surfaceContainerHighest,
           borderRadius: BorderRadius.circular(12),
         ),
         child: Icon(icon, color: isDarkMode ? Colors.white70 : AppColors.navy),

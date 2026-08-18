@@ -1,4 +1,5 @@
 import 'package:sikayet_uygulamasi/data/models/paginated_result.dart';
+import 'package:sikayet_uygulamasi/data/models/stats.dart';
 
 import '../models/report.dart';
 
@@ -20,4 +21,6 @@ abstract class ReportRepository {
   );
   Future<void> assignReport(String reportId, String staffId);
   Future<void> updateAssignedStaff(String reportId, String staffId);
+  Future<DashboardStats> getDashboardStats();
+  Future<MyStats> getMyStats();
 }

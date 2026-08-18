@@ -20,10 +20,10 @@ class MainNavigationScreen extends ConsumerStatefulWidget {
 }
 
 class _MainNavigationScreenState extends ConsumerState<MainNavigationScreen> {
-  int _currentIndex = 0;
-
   @override
   Widget build(BuildContext context) {
+    final currentIndex = ref.watch(currentTabIndexProvider);
+
     final user = ref.watch(currentUserProvider);
     final canManageUsers =
         user?.role == UserRole.admin || user?.role == UserRole.managing;
@@ -40,7 +40,7 @@ class _MainNavigationScreenState extends ConsumerState<MainNavigationScreen> {
       if (previous?.role != next?.role) {
         if (mounted) {
           setState(() {
-            _currentIndex = 0;
+            ref.read(currentTabIndexProvider.notifier).state = 0;
           });
         }
       }
@@ -53,7 +53,7 @@ class _MainNavigationScreenState extends ConsumerState<MainNavigationScreen> {
       const ProfileScreen(),
     ];
 
-    final safeIndex = _currentIndex >= screens.length ? 0 : _currentIndex;
+    final safeIndex = currentIndex >= screens.length ? 0 : currentIndex;
 
     final List<_NavItem> items = [
       _NavItem(
@@ -113,7 +113,8 @@ class _MainNavigationScreenState extends ConsumerState<MainNavigationScreen> {
                   behavior: HitTestBehavior.opaque,
                   onTap: () {
                     HapticFeedback.selectionClick();
-                    setState(() => _currentIndex = i);
+                    // 3. Kullanıcı tıklayınca Provider üzerinden index'i değiştir
+                    ref.read(currentTabIndexProvider.notifier).state = i;
                   },
                   child: AnimatedContainer(
                     duration: const Duration(milliseconds: 200),

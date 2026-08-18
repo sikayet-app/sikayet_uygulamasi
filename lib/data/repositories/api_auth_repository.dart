@@ -179,7 +179,7 @@ class ApiAuthRepository implements AuthRepository {
 
   @override
   Future<void> deleteUser(String userId) async {
-    await _dio.delete('users/$userId');
+    await _dio.delete('/users/$userId');
   }
 
   @override
@@ -188,7 +188,7 @@ class ApiAuthRepository implements AuthRepository {
       await _dio.patch('/users/$userId/role', data: {'role': newRole});
     } on DioException catch (e) {
       final message =
-          e.response?.data['message'] ?? 'Kullancı rolü güncellenemdi.';
+          e.response?.data['message'] ?? 'Kullancı rolü güncellenemedi.';
       throw Exception(message);
     } catch (e) {
       throw Exception('Beklenmeyen bir hata oluştu: $e');

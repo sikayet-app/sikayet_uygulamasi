@@ -3,6 +3,8 @@ import '../local/database_helper.dart';
 import '../models/report.dart';
 import 'report_repository.dart';
 import '../models/paginated_result.dart';
+import '../models/stats.dart';
+
 
 class LocalReportRepository implements ReportRepository {
   final DatabaseHelper _dbHelper = DatabaseHelper.instance;
@@ -58,6 +60,31 @@ class LocalReportRepository implements ReportRepository {
       currentPage: 1,
       lastPage: 1,
       total: 0,
+    );
+  }
+  @override
+  Future<DashboardStats> getDashboardStats() async {
+    return DashboardStats(
+      totalReports: 0,
+      pendingReports: 0,
+      inProgressReports: 0,
+      resolvedReports: 0,
+      rejectedReports: 0,
+      unfoundedReports: 0,
+      managingCount: 0,
+      staffCount: 0,
+      citizenCount: 0,
+      categoryBreakdown: [],
+      monthlyReports: [],
+    );
+  }
+  @override
+  Future<MyStats> getMyStats() async {
+    return MyStats(
+      role: 'citizen',
+      assignedReports: 0,
+      openReports: 0,
+      resolvedReports: 0,
     );
   }
 }

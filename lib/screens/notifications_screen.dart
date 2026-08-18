@@ -27,26 +27,7 @@ class NotificationsScreen extends ConsumerWidget {
         centerTitle: false,
         elevation: 0,
         backgroundColor: Colors.transparent,
-        actions: [
-          TextButton(
-            onPressed: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Tümü okundu işaretleme API si bekleniyor'),
-                ),
-              );
-            },
-            child: Text(
-              'Tümünü okundu işaretle',
-              style: TextStyle(
-                color: colorScheme.primary,
-                fontWeight: FontWeight.bold,
-                fontSize: 13,
-              ),
-            ),
-          ),
-          const SizedBox(width: 8),
-        ],
+        
       ),
       body: notificationAsync.when(
         data: (notifications) {

@@ -28,6 +28,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   Timer? _debounce;
   LatLng? _myLocation;
   bool _isMapReady = false;
+  bool _hasInitialized = false;
 
   static const LatLng _defaultCenter = LatLng(37.0662, 37.3833);
 
@@ -48,7 +49,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   @override
   void initState() {
     super.initState();
-    _loadMyLocation();
   }
 
   Future<void> _loadMyLocation() async {
@@ -67,13 +67,30 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final state = ref.watch(filteredReportListProvider);
-    final currentStatus = ref.watch(filterStatusProvider);
-    final searchResults = ref.watch(mapSearchResultsProvider);
-
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
     final isDarkMode = theme.brightness == Brightness.dark;
+    // Provider'ı anlık olarak dinler. Detay sayfasından haber geldiği an tetiklenir!
+    ref.listen<Report?>(mapFocusProvider, (previous, next) {
+      if (next != null && next.latitude != 0.0 && _isMapReady) {
+        final target = LatLng(next.latitude, next.longitude);
+        _mapController.move(target, 16);
+
+        Future.delayed(const Duration(milliseconds: 300), () {
+          if (mounted) {
+            _showReportPreview(context, next, colorScheme, isDarkMode);
+          }
+        });
+
+        // İşlem bitince sıfırla
+        Future.microtask(
+          () => ref.read(mapFocusProvider.notifier).state = null,
+        );
+      }
+    });
+    final state = ref.watch(filteredReportListProvider);
+    final currentStatus = ref.watch(filterStatusProvider);
+    final searchResults = ref.watch(mapSearchResultsProvider);
 
     return Scaffold(
       endDrawer: Drawer(
@@ -81,91 +98,149 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         child: const SafeArea(child: FilterDrawerContent()),
       ),
       body: state.isLoading && state.reports.isEmpty
-      ? const Center(child: CircularProgressIndicator()) 
-      : state.error != null && state.reports.isEmpty
-      ? Center(child: Text('Bildirimler yüklenemedi: ${state.error}'))
-      : Stack(
-          children: [
-            // HARİTA
-            FlutterMap(
-              mapController: _mapController,
-              options: MapOptions(
-                initialCenter: _defaultCenter,
-                initialZoom: 13,
-                onMapReady: () {
-                  _isMapReady = true;
-                  if (_myLocation != null) {
-                    _mapController.move(_myLocation!, 15);
-                  }
-                },
-                interactionOptions: const InteractionOptions(
-                  flags: InteractiveFlag.drag | InteractiveFlag.pinchZoom,
-                ),
-              ),
+          ? const Center(child: CircularProgressIndicator())
+          : state.error != null && state.reports.isEmpty
+          ? Center(child: Text('Bildirimler yüklenemedi: ${state.error}'))
+          : Stack(
               children: [
-                TileLayer(
-                  urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                  userAgentPackageName: 'com.example.sikayet_uygulamasi',
-                  tileBuilder: (context, tileWidget, tile) {
-                    if (isDarkMode) {
-                      return ColorFiltered(
-                        colorFilter: const ColorFilter.matrix([
-                          -1,
-                          0,
-                          0,
-                          0,
-                          255,
-                          0,
-                          -1,
-                          0,
-                          0,
-                          255,
-                          0,
-                          0,
-                          -1,
-                          0,
-                          255,
-                          0,
-                          0,
-                          0,
-                          1,
-                          0,
-                        ]),
-                        child: tileWidget,
-                      );
-                    }
-                    return tileWidget;
-                  },
-                ),
-                MarkerClusterLayerWidget(
-                  options: MarkerClusterLayerOptions(
-                    maxClusterRadius: 45,
-                    size: const Size(40, 40),
-                    alignment: Alignment.center,
-                    padding: const EdgeInsets.all(50),
-                    maxZoom: 15,
-                    markers: state.reports.map((report) {
-                      final statusColor = colorForStatus(
-                        report.status,
-                        isDarkMode: isDarkMode,
-                      );
-                      return Marker(
-                        point: LatLng(report.latitude, report.longitude),
-                        width: 44,
-                        height: 44,
-                        child: GestureDetector(
-                          onTap: () {
-                            FocusScope.of(context).unfocus();
-                            _showReportPreview(
-                              context,
-                              report,
-                              colorScheme,
-                              isDarkMode,
-                            );
-                          },
-                          child: Container(
+                // HARİTA
+                FlutterMap(
+                  mapController: _mapController,
+                  options: MapOptions(
+                    initialCenter: _defaultCenter,
+                    initialZoom: 13,
+                    onMapReady: () {
+                      _isMapReady = true;
+                      if (!_hasInitialized) {
+                        _hasInitialized =
+                            true; // Artık ilk açılış yapıldı olarak işaretle
+                        // Harita ilk yüklendiğinde bekleyen bir odaklanma emri var mı diye bak
+                        final focusTarget = ref.read(mapFocusProvider);
+
+                        if (focusTarget != null &&
+                            focusTarget.latitude != 0.0) {
+                          final targetLocation = LatLng(
+                            focusTarget.latitude,
+                            focusTarget.longitude,
+                          );
+
+                          _mapController.move(targetLocation, 16);
+                          Future.delayed(const Duration(milliseconds: 300), () {
+                            if (mounted) {
+                              _showReportPreview(
+                                context,
+                                focusTarget,
+                                colorScheme,
+                                isDarkMode,
+                              );
+                            }
+                          });
+
+                          // İşlem bittikten sonra haberciyi sıfırla ki harita kilitli kalmasın
+                          Future.microtask(
+                            () => ref.read(mapFocusProvider.notifier).state =
+                                null,
+                          );
+                        } else {
+                          _loadMyLocation();
+                        }
+                      }
+                    },
+                    interactionOptions: const InteractionOptions(
+                      flags: InteractiveFlag.drag | InteractiveFlag.pinchZoom,
+                    ),
+                  ),
+                  children: [
+                    TileLayer(
+                      urlTemplate:
+                          'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                      userAgentPackageName: 'com.example.sikayet_uygulamasi',
+                      tileBuilder: (context, tileWidget, tile) {
+                        if (isDarkMode) {
+                          return ColorFiltered(
+                            colorFilter: const ColorFilter.matrix([
+                              -1,
+                              0,
+                              0,
+                              0,
+                              255,
+                              0,
+                              -1,
+                              0,
+                              0,
+                              255,
+                              0,
+                              0,
+                              -1,
+                              0,
+                              255,
+                              0,
+                              0,
+                              0,
+                              1,
+                              0,
+                            ]),
+                            child: tileWidget,
+                          );
+                        }
+                        return tileWidget;
+                      },
+                    ),
+                    MarkerClusterLayerWidget(
+                      options: MarkerClusterLayerOptions(
+                        maxClusterRadius: 45,
+                        size: const Size(40, 40),
+                        alignment: Alignment.center,
+                        padding: const EdgeInsets.all(50),
+                        maxZoom: 15,
+                        markers: state.reports.map((report) {
+                          final statusColor = colorForStatus(
+                            report.status,
+                            isDarkMode: isDarkMode,
+                          );
+                          return Marker(
+                            point: LatLng(report.latitude, report.longitude),
+                            width: 44,
+                            height: 44,
+                            child: GestureDetector(
+                              onTap: () {
+                                FocusScope.of(context).unfocus();
+                                _showReportPreview(
+                                  context,
+                                  report,
+                                  colorScheme,
+                                  isDarkMode,
+                                );
+                              },
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  color: statusColor,
+                                  shape: BoxShape.circle,
+                                  border: Border.all(
+                                    color: Colors.white,
+                                    width: 2.5,
+                                  ),
+                                  boxShadow: const [
+                                    BoxShadow(
+                                      color: Colors.black26,
+                                      blurRadius: 6,
+                                      offset: Offset(0, 3),
+                                    ),
+                                  ],
+                                ),
+                                child: Icon(
+                                  getCategoryIcon(report.category),
+                                  color: Colors.white,
+                                  size: 22,
+                                ),
+                              ),
+                            ),
+                          );
+                        }).toList(),
+                        builder: (context, markers) {
+                          return Container(
                             decoration: BoxDecoration(
-                              color: statusColor,
+                              color: AppColors.navy,
                               shape: BoxShape.circle,
                               border: Border.all(
                                 color: Colors.white,
@@ -179,372 +254,363 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                 ),
                               ],
                             ),
-                            child: Icon(
-                              getCategoryIcon(report.category),
-                              color: Colors.white,
-                              size: 22,
-                            ),
-                          ),
-                        ),
-                      );
-                    }).toList(),
-                    builder: (context, markers) {
-                      return Container(
-                        decoration: BoxDecoration(
-                          color: AppColors.navy,
-                          shape: BoxShape.circle,
-                          border: Border.all(color: Colors.white, width: 2.5),
-                          boxShadow: const [
-                            BoxShadow(
-                              color: Colors.black26,
-                              blurRadius: 6,
-                              offset: Offset(0, 3),
-                            ),
-                          ],
-                        ),
-                        child: Center(
-                          child: Text(
-                            markers.length.toString(),
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 16,
-                            ),
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-                ),
-                if (_myLocation != null)
-                  MarkerLayer(
-                    markers: [
-                      Marker(
-                        point: _myLocation!,
-                        width: 24,
-                        height: 24,
-                        child: Container(
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF4285F4),
-                            shape: BoxShape.circle,
-                            border: Border.all(color: Colors.white, width: 3.0),
-                            boxShadow: [
-                              BoxShadow(
-                                color: const Color(
-                                  0xFF4285F4,
-                                ).withValues(alpha: 0.4),
-                                blurRadius: 10,
-                                spreadRadius: 4,
+                            child: Center(
+                              child: Text(
+                                markers.length.toString(),
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 16,
+                                ),
                               ),
-                            ],
-                          ),
-                        ),
+                            ),
+                          );
+                        },
                       ),
-                    ],
-                  ),
-              ],
-            ),
+                    ),
+                    if (_myLocation != null)
+                      MarkerLayer(
+                        markers: [
+                          Marker(
+                            point: _myLocation!,
+                            width: 24,
+                            height: 24,
+                            child: Container(
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF4285F4),
+                                shape: BoxShape.circle,
+                                border: Border.all(
+                                  color: Colors.white,
+                                  width: 3.0,
+                                ),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: const Color(
+                                      0xFF4285F4,
+                                    ).withValues(alpha: 0.4),
+                                    blurRadius: 10,
+                                    spreadRadius: 4,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                  ],
+                ),
 
-            //  ARAMA ÇUBUĞU VE FİLTRELER
-            Positioned(
-              top: 0,
-              left: 0,
-              right: 0,
-              child: SafeArea(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16.0,
-                    vertical: 8.0,
-                  ),
-                  child: Column(
-                    children: [
-                      // Arama Çubuğu
-                      Container(
-                        height: 52,
-                        decoration: BoxDecoration(
-                          color: isDarkMode
-                              ? colorScheme.surfaceContainerHighest
-                              : Colors.white,
-                          borderRadius: BorderRadius.circular(12),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.1),
-                              blurRadius: 10,
-                              offset: const Offset(0, 4),
+                //  ARAMA ÇUBUĞU VE FİLTRELER
+                Positioned(
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  child: SafeArea(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16.0,
+                        vertical: 8.0,
+                      ),
+                      child: Column(
+                        children: [
+                          // Arama Çubuğu
+                          Container(
+                            height: 52,
+                            decoration: BoxDecoration(
+                              color: isDarkMode
+                                  ? colorScheme.surfaceContainerHighest
+                                  : Colors.white,
+                              borderRadius: BorderRadius.circular(12),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withValues(alpha: 0.1),
+                                  blurRadius: 10,
+                                  offset: const Offset(0, 4),
+                                ),
+                              ],
                             ),
-                          ],
-                        ),
-                        child: Row(
-                          children: [
-                            Padding(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 16.0,
-                              ),
-                              child: Icon(
-                                Icons.search,
-                                color: colorScheme.onSurfaceVariant,
-                              ),
-                            ),
-                            Expanded(
-                              child: TextField(
-                                controller: _searchController,
-                                onChanged: _onSearchChanged,
-                                onTapOutside: (event) =>
-                                    FocusScope.of(context).unfocus(),
-                                style: TextStyle(color: colorScheme.onSurface),
-                                decoration: InputDecoration(
-                                  hintText: 'Bölge veya adres ara...',
-                                  border: InputBorder.none,
-                                  hintStyle: TextStyle(
+                            child: Row(
+                              children: [
+                                Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 16.0,
+                                  ),
+                                  child: Icon(
+                                    Icons.search,
                                     color: colorScheme.onSurfaceVariant,
                                   ),
                                 ),
-                              ),
-                            ),
-                            Container(
-                              width: 1,
-                              height: 24,
-                              color: colorScheme.outline.withValues(alpha: 0.3),
-                            ),
-                            Builder(
-                              builder: (innerContext) {
-                                return IconButton(
-                                  icon: Icon(
-                                    Icons.tune,
-                                    color: colorScheme.onSurface,
-                                  ),
-                                  onPressed: () {
-                                    Scaffold.of(innerContext).openEndDrawer();
-                                  },
-                                );
-                              },
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-
-                      // Arama Sonuçları
-                      if (searchResults.isNotEmpty)
-                        Container(
-                          margin: const EdgeInsets.only(bottom: 12),
-                          decoration: BoxDecoration(
-                            color: isDarkMode
-                                ? colorScheme.surfaceContainerHighest
-                                : Colors.white,
-                            borderRadius: BorderRadius.circular(12),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withValues(alpha: 0.1),
-                                blurRadius: 10,
-                                offset: const Offset(0, 4),
-                              ),
-                            ],
-                          ),
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: searchResults
-                                .map(
-                                  (r) => ListTile(
-                                    dense: true,
-                                    leading: Icon(
-                                      getCategoryIcon(r.category),
-                                      size: 20,
-
-                                      color: colorForStatus(
-                                        r.status,
-                                        isDarkMode: isDarkMode,
-                                      ),
+                                Expanded(
+                                  child: TextField(
+                                    controller: _searchController,
+                                    onChanged: _onSearchChanged,
+                                    onTapOutside: (event) =>
+                                        FocusScope.of(context).unfocus(),
+                                    style: TextStyle(
+                                      color: colorScheme.onSurface,
                                     ),
-                                    title: Text(
-                                      r.title,
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                        color: colorScheme.onSurface,
-                                      ),
-                                    ),
-                                    subtitle: Text(
-                                      r.fullAddress ?? '',
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: TextStyle(
+                                    decoration: InputDecoration(
+                                      hintText: 'Bölge veya adres ara...',
+                                      border: InputBorder.none,
+                                      hintStyle: TextStyle(
                                         color: colorScheme.onSurfaceVariant,
                                       ),
                                     ),
-                                    onTap: () {
-                                      if (_isMapReady) {
-                                        _mapController.move(
-                                          LatLng(r.latitude, r.longitude),
-                                          16,
-                                        );
-                                      }
-                                      _searchController.clear();
-                                      ref
-                                              .read(
-                                                mapSearchQueryProvider.notifier,
-                                              )
-                                              .state =
-                                          '';
-                                      FocusScope.of(context).unfocus();
-                                      _showReportPreview(
-                                        context,
-                                        r,
-                                        colorScheme,
-                                        isDarkMode,
-                                      );
-                                    },
                                   ),
-                                )
-                                .toList(),
-                          ),
-                        ),
-
-                      // Durum Filtre Çipleri
-                      SingleChildScrollView(
-                        scrollDirection: Axis.horizontal,
-                        child: Row(
-                          children: [
-                            Padding(
-                              padding: const EdgeInsets.only(right: 8.0),
-                              child: ChoiceChip(
-                                label: const Text('Tümü'),
-                                selected: currentStatus == null,
-                                onSelected: (selected) {
-                                  if (selected)
-                                    ref
-                                            .read(filterStatusProvider.notifier)
-                                            .state =
-                                        null;
-                                },
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(20),
                                 ),
-                                backgroundColor: isDarkMode
+                                Container(
+                                  width: 1,
+                                  height: 24,
+                                  color: colorScheme.outline.withValues(
+                                    alpha: 0.3,
+                                  ),
+                                ),
+                                Builder(
+                                  builder: (innerContext) {
+                                    return IconButton(
+                                      icon: Icon(
+                                        Icons.tune,
+                                        color: colorScheme.onSurface,
+                                      ),
+                                      onPressed: () {
+                                        Scaffold.of(
+                                          innerContext,
+                                        ).openEndDrawer();
+                                      },
+                                    );
+                                  },
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+
+                          // Arama Sonuçları
+                          if (searchResults.isNotEmpty)
+                            Container(
+                              margin: const EdgeInsets.only(bottom: 12),
+                              decoration: BoxDecoration(
+                                color: isDarkMode
                                     ? colorScheme.surfaceContainerHighest
                                     : Colors.white,
+                                borderRadius: BorderRadius.circular(12),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withValues(alpha: 0.1),
+                                    blurRadius: 10,
+                                    offset: const Offset(0, 4),
+                                  ),
+                                ],
+                              ),
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: searchResults
+                                    .map(
+                                      (r) => ListTile(
+                                        dense: true,
+                                        leading: Icon(
+                                          getCategoryIcon(r.category),
+                                          size: 20,
 
-                                selectedColor: isDarkMode
-                                    ? colorScheme.primary.withValues(alpha: 0.3)
-                                    : AppColors.navy,
-                                labelStyle: TextStyle(
-                                  color: currentStatus == null
-                                      ? (isDarkMode
-                                            ? colorScheme.primary
-                                            : Colors.white)
-                                      : colorScheme.onSurface,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                                side: BorderSide.none,
-                                shadowColor: Colors.black.withValues(
-                                  alpha: 0.3,
-                                ),
-                                elevation: currentStatus == null ? 4 : 2,
+                                          color: colorForStatus(
+                                            r.status,
+                                            isDarkMode: isDarkMode,
+                                          ),
+                                        ),
+                                        title: Text(
+                                          r.title,
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            color: colorScheme.onSurface,
+                                          ),
+                                        ),
+                                        subtitle: Text(
+                                          r.fullAddress ?? '',
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: TextStyle(
+                                            color: colorScheme.onSurfaceVariant,
+                                          ),
+                                        ),
+                                        onTap: () {
+                                          if (_isMapReady) {
+                                            _mapController.move(
+                                              LatLng(r.latitude, r.longitude),
+                                              16,
+                                            );
+                                          }
+                                          _searchController.clear();
+                                          ref
+                                                  .read(
+                                                    mapSearchQueryProvider
+                                                        .notifier,
+                                                  )
+                                                  .state =
+                                              '';
+                                          FocusScope.of(context).unfocus();
+                                          _showReportPreview(
+                                            context,
+                                            r,
+                                            colorScheme,
+                                            isDarkMode,
+                                          );
+                                        },
+                                      ),
+                                    )
+                                    .toList(),
                               ),
                             ),
-                            ...ReportStatus.values.map((status) {
-                              final isSelected = currentStatus == status;
-                              return Padding(
-                                padding: const EdgeInsets.only(right: 8.0),
-                                child: ChoiceChip(
-                                  avatar: Container(
-                                    width: 8,
-                                    height: 8,
-                                    decoration: BoxDecoration(
-                                      color: isSelected
+
+                          // Durum Filtre Çipleri
+                          SingleChildScrollView(
+                            scrollDirection: Axis.horizontal,
+                            child: Row(
+                              children: [
+                                Padding(
+                                  padding: const EdgeInsets.only(right: 8.0),
+                                  child: ChoiceChip(
+                                    label: const Text('Tümü'),
+                                    selected: currentStatus == null,
+                                    onSelected: (selected) {
+                                      if (selected)
+                                        ref
+                                                .read(
+                                                  filterStatusProvider.notifier,
+                                                )
+                                                .state =
+                                            null;
+                                    },
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(20),
+                                    ),
+                                    backgroundColor: isDarkMode
+                                        ? colorScheme.surfaceContainerHighest
+                                        : Colors.white,
+
+                                    selectedColor: isDarkMode
+                                        ? colorScheme.primary.withValues(
+                                            alpha: 0.3,
+                                          )
+                                        : AppColors.navy,
+                                    labelStyle: TextStyle(
+                                      color: currentStatus == null
                                           ? (isDarkMode
                                                 ? colorScheme.primary
                                                 : Colors.white)
-                                          : colorForStatus(
-                                              status,
-                                              isDarkMode: isDarkMode,
-                                            ),
-                                      shape: BoxShape.circle,
+                                          : colorScheme.onSurface,
+                                      fontWeight: FontWeight.bold,
                                     ),
+                                    side: BorderSide.none,
+                                    shadowColor: Colors.black.withValues(
+                                      alpha: 0.3,
+                                    ),
+                                    elevation: currentStatus == null ? 4 : 2,
                                   ),
-                                  label: Text(getStatusLabel(status)),
-                                  selected: isSelected,
-                                  onSelected: (selected) {
-                                    if (selected)
-                                      ref
-                                              .read(
-                                                filterStatusProvider.notifier,
-                                              )
-                                              .state =
-                                          status;
-                                  },
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(20),
-                                  ),
-                                  backgroundColor: isDarkMode
-                                      ? colorScheme.surfaceContainerHighest
-                                      : Colors.white,
-
-                                  selectedColor: isDarkMode
-                                      ? colorScheme.primary.withValues(
-                                          alpha: 0.3,
-                                        )
-                                      : AppColors.navy,
-                                  labelStyle: TextStyle(
-                                    color: isSelected
-                                        ? (isDarkMode
-                                              ? colorScheme.primary
-                                              : Colors.white)
-                                        : colorScheme.onSurface,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                  side: BorderSide.none,
-                                  elevation: isSelected ? 4 : 2,
                                 ),
-                              );
-                            }).toList(),
-                          ],
-                        ),
+                                ...ReportStatus.values.map((status) {
+                                  final isSelected = currentStatus == status;
+                                  return Padding(
+                                    padding: const EdgeInsets.only(right: 8.0),
+                                    child: ChoiceChip(
+                                      avatar: Container(
+                                        width: 8,
+                                        height: 8,
+                                        decoration: BoxDecoration(
+                                          color: isSelected
+                                              ? (isDarkMode
+                                                    ? colorScheme.primary
+                                                    : Colors.white)
+                                              : colorForStatus(
+                                                  status,
+                                                  isDarkMode: isDarkMode,
+                                                ),
+                                          shape: BoxShape.circle,
+                                        ),
+                                      ),
+                                      label: Text(getStatusLabel(status)),
+                                      selected: isSelected,
+                                      onSelected: (selected) {
+                                        if (selected)
+                                          ref
+                                                  .read(
+                                                    filterStatusProvider
+                                                        .notifier,
+                                                  )
+                                                  .state =
+                                              status;
+                                      },
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(20),
+                                      ),
+                                      backgroundColor: isDarkMode
+                                          ? colorScheme.surfaceContainerHighest
+                                          : Colors.white,
+
+                                      selectedColor: isDarkMode
+                                          ? colorScheme.primary.withValues(
+                                              alpha: 0.3,
+                                            )
+                                          : AppColors.navy,
+                                      labelStyle: TextStyle(
+                                        color: isSelected
+                                            ? (isDarkMode
+                                                  ? colorScheme.primary
+                                                  : Colors.white)
+                                            : colorScheme.onSurface,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                      side: BorderSide.none,
+                                      elevation: isSelected ? 4 : 2,
+                                    ),
+                                  );
+                                }).toList(),
+                              ],
+                            ),
+                          ),
+                        ],
                       ),
-                    ],
+                    ),
                   ),
                 ),
-              ),
-            ),
 
-            // AKSİYON BUTONLARI
-            Positioned(
-              bottom: 16,
-              right: 16,
-              child: SafeArea(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    FloatingActionButton.small(
-                      heroTag: 'recenter',
-                      backgroundColor: colorScheme.surface,
-                      foregroundColor: colorScheme.onSurface,
-                      elevation: 4,
-                      onPressed: () {
-                        if (_myLocation != null && _isMapReady) {
-                          _mapController.move(_myLocation!, 15);
-                        } else {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('Konumunuz aranıyor...'),
-                            ),
-                          );
-                        }
-                      },
-                      child: const Icon(Icons.my_location),
+                // AKSİYON BUTONLARI
+                Positioned(
+                  bottom: 16,
+                  right: 16,
+                  child: SafeArea(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        FloatingActionButton.small(
+                          heroTag: 'recenter',
+                          backgroundColor: colorScheme.surface,
+                          foregroundColor: colorScheme.onSurface,
+                          elevation: 4,
+                          onPressed: () {
+                            if (_myLocation != null && _isMapReady) {
+                              _mapController.move(_myLocation!, 15);
+                            } else {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Konumunuz aranıyor...'),
+                                ),
+                              );
+                            }
+                          },
+                          child: const Icon(Icons.my_location),
+                        ),
+                        const SizedBox(height: 16),
+
+                        const CreateReportFab(),
+                      ],
                     ),
-                    const SizedBox(height: 16),
-
-                    const CreateReportFab(),
-                  ],
+                  ),
                 ),
-              ),
+              ],
             ),
-          ],
-        ),
-        
     );
   }
 

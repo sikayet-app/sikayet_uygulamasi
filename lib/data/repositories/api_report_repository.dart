@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sikayet_uygulamasi/data/models/paginated_result.dart';
+import 'package:sikayet_uygulamasi/data/models/stats.dart';
 import '../../core/api_constants.dart';
 import '../models/report.dart';
 import 'report_repository.dart';
@@ -49,18 +50,18 @@ class ApiReportRepository implements ReportRepository {
     String? category,
   }) async {
     final queryParams = <String, dynamic>{'page': page};
-    if(status != null) queryParams['status'] = status;
-    if(category != null) queryParams['category'] = category;
+    if (status != null) queryParams['status'] = status;
+    if (category != null) queryParams['category'] = category;
 
     final response = await _dio.get('/reports', queryParameters: queryParams);
     final List<dynamic> data = response.data['data'];
     final meta = response.data['meta'];
 
     return PaginatedResult(
-    items: data.map((json) => Report.fromMap(json)).toList(), 
-    currentPage: meta['current_page'] as int, 
-    lastPage: meta['last_page'] as int, 
-    total: meta['total'] as int,
+      items: data.map((json) => Report.fromMap(json)).toList(),
+      currentPage: meta['current_page'] as int,
+      lastPage: meta['last_page'] as int,
+      total: meta['total'] as int,
     );
   }
 
@@ -160,5 +161,26 @@ class ApiReportRepository implements ReportRepository {
       '/reports/$reportId/assign/update',
       data: {'staff_id': int.tryParse(staffId)},
     );
+  }
+
+  @override
+  Future<DashboardStats> getDashboardStats() async {
+    try {
+      final response = await _dio.get('/dashboard/stats');
+      print('DASHBOARD STATS JSON: ${response.data}');
+      return DashboardStats.fromMap(response.data['data']);
+    } on DioException catch (e) {
+      throw Exception('Dashboard istatistikleri alınamadı: ${e.message}');
+    }
+  }
+
+  @override
+  Future<MyStats> getMyStats() async {
+    try {
+      final response = await _dio.get('/me/stats');
+      return MyStats.fromMap(response.data['data']);
+    } on DioException catch (e) {
+      throw Exception('Kişisel istatitikler alınamadı: ${e.message}');
+    }
   }
 }

@@ -24,7 +24,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   Widget build(BuildContext context) {
     final user = ref.watch(currentUserProvider);
     final currentTheme = ref.watch(themeModeProvider);
-    final reportAsync = ref.watch(reportListProvider);
+    final myStatsAsync = ref.watch(myStatsProvider);
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
     final isDarkMode = theme.brightness == Brightness.dark;
@@ -38,250 +38,235 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       );
     }
 
-    int totalReports = 0;
-    int stat2 = 0;
-    int stat3 = 0;
-
-    reportAsync.whenData((reports) {
-      if (user.role == UserRole.citizen) {
-        final myReports = reports.where((r) => r.userId == user.id).toList();
-        totalReports = myReports.length;
-        stat2 = myReports
-            .where((r) => r.status == ReportStatus.resolved)
-            .length;
-        stat3 = myReports
-            .where(
-              (r) =>
-                  r.status == ReportStatus.pending ||
-                  r.status == ReportStatus.inProgress,
-            )
-            .length;
-      } else if (user.role == UserRole.staff) {
-        final assignedReports = reports
-            .where((r) => r.assignedStaffId == user.id)
-            .toList();
-        totalReports = assignedReports.length;
-        stat2 = assignedReports
-            .where(
-              (r) =>
-                  r.status == ReportStatus.resolved ||
-                  r.status == ReportStatus.rejected ||
-                  r.status == ReportStatus.invalid,
-            )
-            .length;
-        stat3 = assignedReports
-            .where((r) => r.status == ReportStatus.inProgress)
-            .length;
-      }
-    });
-
     return Scaffold(
-      backgroundColor: isDarkMode
-          ? colorScheme.surface
-          : AppColors.surfaceWarmLight,
-      body: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // PROFiL KARTI
-            Stack(
-              clipBehavior: Clip.none,
-              alignment: Alignment.bottomCenter,
-              children: [
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.only(
-                    top: 80,
-                    bottom: 60,
-                    left: 16,
-                    right: 16,
-                  ),
-                  decoration: const BoxDecoration(
-                    color: AppColors.navy,
-                    borderRadius: BorderRadius.only(
-                      bottomLeft: Radius.circular(32),
-                      bottomRight: Radius.circular(32),
+      backgroundColor:
+          isDarkMode ? colorScheme.surface : AppColors.surfaceWarmLight,
+      body: RefreshIndicator(
+        onRefresh: () async {
+          ref.invalidate(myStatsProvider);
+          try {
+            await ref.read(myStatsProvider.future);
+          } catch (_) {}
+        },
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Stack(
+                clipBehavior: Clip.none,
+                alignment: Alignment.bottomCenter,
+                children: [
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.only(
+                      top: 80,
+                      bottom: 60,
+                      left: 16,
+                      right: 16,
                     ),
-                  ),
-                  child: Column(
-                    children: [
-                      Container(
-                        width: 96,
-                        height: 96,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          border: Border.all(
-                            color: Colors.white.withValues(alpha: 0.2),
-                            width: 2,
+                    decoration: const BoxDecoration(
+                      color: AppColors.navy,
+                      borderRadius: BorderRadius.only(
+                        bottomLeft: Radius.circular(32),
+                        bottomRight: Radius.circular(32),
+                      ),
+                    ),
+                    child: Column(
+                      children: [
+                        Container(
+                          width: 96,
+                          height: 96,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: Colors.white.withValues(alpha: 0.2),
+                              width: 2,
+                            ),
                           ),
-                        ),
-                        child: Center(
-                          child: Text(
-                            getInitials(user.name),
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 32,
-                              fontWeight: FontWeight.bold,
+                          child: Center(
+                            child: Text(
+                              getInitials(user.name),
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 32,
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
                           ),
                         ),
-                      ),
-                      const SizedBox(height: 16),
-                      Text(
-                        user.name,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 22,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 6,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: Text(
-                          getRoleLabel(user.role),
+                        const SizedBox(height: 16),
+                        Text(
+                          user.name,
                           style: const TextStyle(
-                            color: AppColors.accent,
+                            color: Colors.white,
+                            fontSize: 22,
                             fontWeight: FontWeight.bold,
-                            fontSize: 12,
                           ),
                         ),
-                      ),
-                    ],
-                  ),
-                ),
-                if (user.role == UserRole.citizen ||
-                    user.role == UserRole.staff) ...[
-                  Positioned(
-                    bottom: -40,
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        _buildStatCard(
-                          user.role == UserRole.staff ? 'Atanan İş' : 'Toplam',
-                          totalReports.toString(),
-                          isDarkMode ? Colors.white : Colors.black87,
-                        ),
-                        const SizedBox(width: 12),
-                        _buildStatCard(
-                          user.role == UserRole.staff
-                              ? 'Tamamlanan'
-                              : 'Çözüldü',
-                          stat2.toString(),
-                          colorForStatus(
-                            ReportStatus.resolved,
-                            isDarkMode: isDarkMode,
+                        const SizedBox(height: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 6,
                           ),
-                        ),
-                        const SizedBox(width: 12),
-                        _buildStatCard(
-                          user.role == UserRole.staff ? 'Sahada' : 'Bekliyor',
-                          stat3.toString(),
-                          colorForStatus(
-                            user.role == UserRole.staff
-                                ? ReportStatus.inProgress
-                                : ReportStatus.pending,
-                            isDarkMode: isDarkMode,
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Text(
+                            getRoleLabel(user.role),
+                            style: const TextStyle(
+                              color: AppColors.accent,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 12,
+                            ),
                           ),
                         ),
                       ],
                     ),
                   ),
-                ],
-              ],
-            ),
-            const SizedBox(height: 64),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _buildSectionHeader('HESAP', colorScheme),
-                  _buildMenuGroup(
-                    children: [
-                      _buildMenuTile(
-                        icon: Icons.person_outline,
-                        title: 'Kişisel Bilgiler',
-                        showChevron: true,
-                        isDarkMode: isDarkMode,
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => const EditProfileScreen(),
-                            ),
+                  if (user.role == UserRole.citizen ||
+                      user.role == UserRole.staff) ...[
+                    Positioned(
+                      bottom: -40,
+                      child: myStatsAsync.when(
+                        loading: () => AppCard(
+                          padding: const EdgeInsets.symmetric(
+                              vertical: 24, horizontal: 48),
+                          child: const CircularProgressIndicator(),
+                        ),
+                        error: (err, stack) => AppCard(
+                          padding: const EdgeInsets.all(16),
+                          child: Text('Veriler alınamadı',
+                              style: TextStyle(color: colorScheme.error)),
+                        ),
+                        data: (stats) {
+                          return Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              _buildStatCard(
+                                user.role == UserRole.staff
+                                    ? 'Atanan İş'
+                                    : 'Toplam',
+                                stats.assignedReports.toString(),
+                                isDarkMode ? Colors.white : Colors.black87,
+                              ),
+                              const SizedBox(width: 12),
+                              _buildStatCard(
+                                user.role == UserRole.staff
+                                    ? 'Tamamlanan'
+                                    : 'Çözüldü',
+                                stats.resolvedReports.toString(),
+                                colorForStatus(
+                                  ReportStatus.resolved,
+                                  isDarkMode: isDarkMode,
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              _buildStatCard(
+                                user.role == UserRole.staff
+                                    ? 'Sahada'
+                                    : 'Bekliyor',
+                                stats.openReports.toString(),
+                                colorForStatus(
+                                  user.role == UserRole.staff
+                                      ? ReportStatus.inProgress
+                                      : ReportStatus.pending,
+                                  isDarkMode: isDarkMode,
+                                ),
+                              ),
+                            ],
                           );
                         },
                       ),
-                    ],
-                  ),
-                  const SizedBox(height: 24),
-
-                  _buildSectionHeader('TERCİHLER', colorScheme),
-                  _buildMenuGroup(
-                    children: [
-                      _buildMenuTile(
-                        icon: Icons.dark_mode_outlined,
-                        title: 'Karanlık Mod',
-                        isDarkMode: isDarkMode,
-                        trailing: Switch(
-                          value: currentTheme == ThemeMode.dark,
-                          activeColor: Colors.white,
-                          activeTrackColor: isDarkMode
-                              ? colorScheme.primary
-                              : AppColors.navy,
-                          onChanged: (isDark) {
-                            final newTheme = isDark
-                                ? ThemeMode.dark
-                                : ThemeMode.light;
-                            ref.read(themeModeProvider.notifier).state =
-                                newTheme;
-                            ThemeService().saveThemeMode(newTheme);
-                          },
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 24),
-
-                  _buildSectionHeader('DİĞER', colorScheme),
-                  _buildMenuGroup(
-                    children: [
-                      _buildMenuTile(
-                        icon: Icons.help_outline,
-                        title: 'Yardım ve Destek',
-                        showChevron: true,
-                        isDarkMode: isDarkMode,
-                        onTap: () => _showHelpSupportSheet(
-                          context,
-                          colorScheme,
-                          isDarkMode,
-                        ),
-                      ),
-                      _buildDivider(isDarkMode, colorScheme),
-                      _buildMenuTile(
-                        icon: Icons.logout,
-                        title: 'Çıkış Yap',
-                        titleColor: Colors.red.shade700,
-                        iconColor: Colors.red.shade700,
-                        isDarkMode: isDarkMode,
-                        onTap: () =>
-                            _showLogoutDialog(context, ref, colorScheme),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 120),
+                    ),
+                  ],
                 ],
               ),
-            ),
-          ],
+              const SizedBox(height: 64),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildSectionHeader('HESAP', colorScheme),
+                    _buildMenuGroup(
+                      children: [
+                        _buildMenuTile(
+                          icon: Icons.person_outline,
+                          title: 'Kişisel Bilgiler',
+                          showChevron: true,
+                          isDarkMode: isDarkMode,
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => const EditProfileScreen(),
+                              ),
+                            );
+                          },
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 24),
+                    _buildSectionHeader('TERCİHLER', colorScheme),
+                    _buildMenuGroup(
+                      children: [
+                        _buildMenuTile(
+                          icon: Icons.dark_mode_outlined,
+                          title: 'Karanlık Mod',
+                          isDarkMode: isDarkMode,
+                          trailing: Switch(
+                            value: currentTheme == ThemeMode.dark,
+                            activeColor: Colors.white,
+                            activeTrackColor: isDarkMode
+                                ? colorScheme.primary
+                                : AppColors.navy,
+                            onChanged: (isDark) {
+                              final newTheme =
+                                  isDark ? ThemeMode.dark : ThemeMode.light;
+                              ref.read(themeModeProvider.notifier).state =
+                                  newTheme;
+                              ThemeService().saveThemeMode(newTheme);
+                            },
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 24),
+                    _buildSectionHeader('DİĞER', colorScheme),
+                    _buildMenuGroup(
+                      children: [
+                        _buildMenuTile(
+                          icon: Icons.help_outline,
+                          title: 'Yardım ve Destek',
+                          showChevron: true,
+                          isDarkMode: isDarkMode,
+                          onTap: () => _showHelpSupportSheet(
+                            context,
+                            colorScheme,
+                            isDarkMode,
+                          ),
+                        ),
+                        _buildDivider(isDarkMode, colorScheme),
+                        _buildMenuTile(
+                          icon: Icons.logout,
+                          title: 'Çıkış Yap',
+                          titleColor: Colors.red.shade700,
+                          iconColor: Colors.red.shade700,
+                          isDarkMode: isDarkMode,
+                          onTap: () =>
+                              _showLogoutDialog(context, ref, colorScheme),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 120),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -363,8 +348,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           color: titleColor,
         ),
       ),
-      trailing:
-          trailing ??
+      trailing: trailing ??
           (showChevron
               ? const Icon(Icons.chevron_right, color: Colors.grey, size: 20)
               : null),

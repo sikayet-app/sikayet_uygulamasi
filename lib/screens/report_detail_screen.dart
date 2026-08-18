@@ -9,6 +9,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import '../data/models/user.dart';
 import '../core/app_colors.dart';
+import '../screens/home_screen.dart';
 
 class ReportDetailScreen extends ConsumerStatefulWidget {
   final Report report;
@@ -192,17 +193,19 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
 
         // Karartma katmanı (Sadece görsel varsa)
         if (hasImage)
-          Container(
-            height: 380,
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [
-                  Colors.black.withValues(alpha: 0.1),
-                  Colors.black.withValues(alpha: 0.5),
-                  Colors.black.withValues(alpha: 0.9),
-                ],
+          IgnorePointer(
+            child: Container(
+              height: 380,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    Colors.black.withValues(alpha: 0.1),
+                    Colors.black.withValues(alpha: 0.5),
+                    Colors.black.withValues(alpha: 0.9),
+                  ],
+                ),
               ),
             ),
           ),
@@ -322,11 +325,11 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
         _currentReport.status == ReportStatus.inProgress ||
         _currentReport.status == ReportStatus.resolved ||
         _currentReport.status == ReportStatus.rejected ||
-        _currentReport.status == ReportStatus.invalid;
+        _currentReport.status == ReportStatus.unfounded;
     bool isFinished =
         _currentReport.status == ReportStatus.resolved ||
         _currentReport.status == ReportStatus.rejected ||
-        _currentReport.status == ReportStatus.invalid;
+        _currentReport.status == ReportStatus.unfounded;
 
     return _buildModularCard(
       colorScheme: colorScheme,
@@ -503,8 +506,6 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
     final currentUser = ref.watch(currentUserProvider);
     if (currentUser == null) return const SizedBox.shrink();
 
-    
-
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
     final isDarkMode = theme.brightness == Brightness.dark;
@@ -514,8 +515,9 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
     final canChangeStatus = _currentReport.canUpdateStatus;
     final canAssign = _currentReport.canAssignReport;
 
-    final canViewSender = currentUser.permissions.contains('view_users') || 
-                          currentUser.role == UserRole.admin;
+    final canViewSender =
+        currentUser.permissions.contains('view_users') ||
+        currentUser.role == UserRole.admin;
 
     return Scaffold(
       backgroundColor: isDarkMode
@@ -642,7 +644,7 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
                         String? note;
                         if (newStatus == ReportStatus.resolved ||
                             newStatus == ReportStatus.rejected ||
-                            newStatus == ReportStatus.invalid) {
+                            newStatus == ReportStatus.unfounded) {
                           note = await _showNoteDialog(newStatus);
                           if (note == null) return;
                         }
@@ -743,36 +745,76 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
                       ),
                     ),
                   ),
-                  _buildModularCard(
-                    colorScheme: colorScheme,
-                    isDarkMode: isDarkMode,
-                    overline: 'AÇIK ADRES',
-                    child: Row(
-                      children: [
-                        CircleAvatar(
-                          backgroundColor: colorScheme.primary.withValues(
-                            alpha: 0.1,
-                          ),
-                          child: Icon(
-                            Icons.location_on_outlined,
-                            color: colorScheme.primary,
-                            size: 20,
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Text(
-                            _currentReport.fullAddress ??
-                                'Adres bilgisi bulunmuyor',
-                            style: const TextStyle(
-                              fontSize: 15,
-                              fontWeight: FontWeight.w600,
+                  InkWell(
+                    borderRadius: BorderRadius.circular(20),
+                    onTap: () {
+                      if (_currentReport.latitude == 0.0 &&
+                          _currentReport.longitude == 0.0)
+                        return;
+                      // 1. Haritaya odaklanması gereken şikayeti ver
+                      ref.read(mapFocusProvider.notifier).state = _currentReport;
+                      
+                      // 2. YENİ: Alt barda 0. sekmeye (Harita Sekmesi) geç!
+                      ref.read(currentTabIndexProvider.notifier).state = 0;
+
+                      // 3. Ana iskelete (alt bara) kadar geri dön
+                      Navigator.of(context).popUntil((route) => route.isFirst);
+                    },
+
+                    child: _buildModularCard(
+                      colorScheme: colorScheme,
+                      isDarkMode: isDarkMode,
+                      overline: 'AÇIK ADRES',
+                      child: Row(
+                        children: [
+                          CircleAvatar(
+                            backgroundColor: colorScheme.primary.withValues(
+                              alpha: 0.1,
+                            ),
+                            child: Icon(
+                              Icons.location_on_outlined,
+                              color: colorScheme.primary,
+                              size: 20,
                             ),
                           ),
-                        ),
-                      ],
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  _currentReport.fullAddress ??
+                                      'Adres bilgisi bulunmuyor',
+                                  style: const TextStyle(
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                if (_currentReport.latitude != 0.0) ...[
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    'Haritada görmek için dokunun',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: colorScheme.primary,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                ],
+                              ],
+                            ),
+                          ),
+                          if (_currentReport.latitude != 0.0)
+                            Icon(
+                              Icons.map_outlined,
+                              color: colorScheme.outline,
+                              size: 20,
+                            ),
+                        ],
+                      ),
                     ),
                   ),
+
                   _buildVerticalTimeline(colorScheme, isDarkMode),
                   if (canViewSender)
                     _buildModularCard(

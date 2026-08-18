@@ -1,6 +1,6 @@
 enum ReportCategory { pothole, lighting, garbage, infrastructure, other }
 
-enum ReportStatus { pending, inProgress, resolved, rejected, invalid }
+enum ReportStatus { pending, inProgress, resolved, rejected, unfounded }
 
 class Report {
   final String id;
@@ -241,7 +241,7 @@ String getStatusLabel(ReportStatus status) {
       return "Çözüldü";
     case ReportStatus.rejected:
       return "Reddedildi";
-    case ReportStatus.invalid:
+    case ReportStatus.unfounded:
       return "Asılsız";
   }
 }
