@@ -13,7 +13,7 @@ abstract class ReportRepository {
   Future<void> addReport(Report report);
   Future<void> updateStatus(String id, ReportStatus status);
   Future<void> deleteReport(String id);
-  Future<void> updateReport(Report report);
+  Future<void> updateReport(Report report, {List<String> removedImagePaths});
   Future<void> updateStatusWithNote(
     String reportId,
     ReportStatus status,

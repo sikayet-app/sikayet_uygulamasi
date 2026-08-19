@@ -30,6 +30,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             .read(authRepositoryProvider)
             .login(email: _email, password: _password);
         ref.read(currentUserProvider.notifier).state = result.user;
+        await Future.delayed(const Duration(milliseconds: 300));
+
         if (context.mounted) {
           Navigator.pushReplacement(
             context,
@@ -133,31 +135,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           : null,
                       onSaved: (value) => _password = value!,
                     ),
-                    Align(
-                      alignment: Alignment.centerRight,
-                      child: TextButton(
-                        onPressed: () {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text(
-                                'Şifre sıfırlama yakında eklenecek.',
-                              ),
-                            ),
-                          );
-                        },
-                        style: TextButton.styleFrom(
-                          foregroundColor: AppColors.navy,
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 4,
-                          ),
-                        ),
-                        child: const Text(
-                          'Şifremi unuttum',
-                          style: TextStyle(fontWeight: FontWeight.bold),
-                        ),
-                      ),
-                    ),
+
                     const SizedBox(height: 24),
                     SizedBox(
                       height: 52,

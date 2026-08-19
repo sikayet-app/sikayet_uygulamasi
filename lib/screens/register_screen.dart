@@ -162,7 +162,10 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                           return 'Geçerli bir telefon numarası girin';
                         return null;
                       },
-                      onSaved: (value) => _phoneNumber = value!,
+                      onSaved: (value) =>
+                          _phoneNumber = value != null && value.isNotEmpty
+                          ? '0${phoneFormatter.getUnmaskedText()}'
+                          : '',
                     ),
                     const SizedBox(height: 20),
 

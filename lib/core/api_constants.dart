@@ -1,4 +1,4 @@
 class ApiConstants {
   static const String baseUrl =
-      'https://cave-reserves-publishers-shop.trycloudflare.com/api';
+      'https://renewed-sternness-wrongness.ngrok-free.dev/api';
 }

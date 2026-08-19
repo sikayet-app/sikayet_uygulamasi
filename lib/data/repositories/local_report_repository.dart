@@ -31,7 +31,7 @@ class LocalReportRepository implements ReportRepository {
   }
 
   @override
-  Future<void> updateReport(Report report) async {
+  Future<void> updateReport(Report report, {List<String> removedImagePaths  = const []}) async {
     await _dbHelper.insertReport(report);
   }
 

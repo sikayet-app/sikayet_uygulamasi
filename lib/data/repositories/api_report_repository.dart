@@ -107,7 +107,8 @@ class ApiReportRepository implements ReportRepository {
   }
 
   @override
-  Future<void> updateReport(Report report) async {
+  Future<void> updateReport(Report report, {List<String> removedImagePaths = const []}) async {
+    try{
     // Laravel'e bunun bir PATCH (Yama/Güncelleme) işlemi olduğunu söylüyoruz.
     final formData = FormData.fromMap({
       '_method': 'PATCH',
@@ -122,6 +123,16 @@ class ApiReportRepository implements ReportRepository {
       'full_address': report.fullAddress,
     });
 
+    // 1. Silinen eski fotoğrafları backend'e bildiriyoruz
+    for (var path in removedImagePaths) {
+      String relativePath = path;
+      // 'http://.../storage/reports/abc.jpg' şeklindeki adresi 'reports/abc.jpg' haline getiriyoruz
+      if (path.contains('/storage/')) {
+        relativePath = path.split('/storage/').last;
+      }
+      formData.fields.add(MapEntry('remove-images[]', relativePath));
+    }
+
     for (var imagePath in report.imagePaths) {
       // Sadece yeni seçilen (yerel) dosyaları gönderiyoruz.
       if (!imagePath.startsWith('http')) {
@@ -133,6 +144,11 @@ class ApiReportRepository implements ReportRepository {
 
     // İstek POST olarak gidiyor ama içindeki '_method' sayesinde backend bunu PATCH olarak işliyor.
     await _dio.post('/reports/${report.id}', data: formData);
+    } on DioException catch (e) {
+    
+      final message = e.response?.data['message'] ?? 'Güncelleme reddedildi (422)';
+      throw Exception(message);
+    }
   }
 
   @override
@@ -167,7 +183,7 @@ class ApiReportRepository implements ReportRepository {
   Future<DashboardStats> getDashboardStats() async {
     try {
       final response = await _dio.get('/dashboard/stats');
-      print('DASHBOARD STATS JSON: ${response.data}');
+
       return DashboardStats.fromMap(response.data['data']);
     } on DioException catch (e) {
       throw Exception('Dashboard istatistikleri alınamadı: ${e.message}');
@@ -178,6 +194,7 @@ class ApiReportRepository implements ReportRepository {
   Future<MyStats> getMyStats() async {
     try {
       final response = await _dio.get('/me/stats');
+      
       return MyStats.fromMap(response.data['data']);
     } on DioException catch (e) {
       throw Exception('Kişisel istatitikler alınamadı: ${e.message}');

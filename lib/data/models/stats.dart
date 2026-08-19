@@ -91,8 +91,8 @@ class MyStats {
   factory MyStats.fromMap(Map<String, dynamic> map) {
     return MyStats(
       role: map['role'] ?? '',
-      assignedReports: map['assigned_reports'] ?? 0,
-      openReports: map['open_reports'] ?? 0,
+      assignedReports: map['assigned_reports'] ?? map['total_reports'] ?? 0,
+      openReports: map['open_reports'] ?? map['pending_reports'] ?? 0,
       resolvedReports: map['resolved_reports'] ?? 0,
     );
   }

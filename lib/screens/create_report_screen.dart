@@ -59,6 +59,8 @@ class _CreateReportScreenState extends ConsumerState<CreateReportScreen> {
 
   late final MaskTextInputFormatter phoneFormatter;
 
+  final List<String> _removedImagePaths = [];
+
   @override
   void initState() {
     super.initState();
@@ -379,7 +381,10 @@ class _CreateReportScreenState extends ConsumerState<CreateReportScreen> {
 
         final repository = ref.read(reportRepositoryProvider);
         if (widget.existingReport != null) {
-          await repository.updateReport(reportToSave);
+          await repository.updateReport(
+            reportToSave,
+            removedImagePaths: _removedImagePaths,
+          );
         } else {
           await repository.addReport(reportToSave);
         }
@@ -820,7 +825,10 @@ class _CreateReportScreenState extends ConsumerState<CreateReportScreen> {
                     const SizedBox(height: 24),
                     TextFormField(
                       initialValue: _title,
-                      onChanged: (value) => _title = value,
+                      onChanged: (value) {
+                        _title = value;
+                        _markAsChanged();
+                      },
                       decoration: InputDecoration(
                         labelText: 'BAŞLIK',
                         labelStyle: const TextStyle(
@@ -845,7 +853,10 @@ class _CreateReportScreenState extends ConsumerState<CreateReportScreen> {
                     const SizedBox(height: 16),
                     TextFormField(
                       initialValue: _description,
-                      onChanged: (value) => _description = value,
+                      onChanged: (value) {
+                        _description = value;
+                        _markAsChanged();
+                      },
                       decoration: InputDecoration(
                         labelText: 'AÇIKLAMA',
                         labelStyle: const TextStyle(
@@ -950,8 +961,15 @@ class _CreateReportScreenState extends ConsumerState<CreateReportScreen> {
                                   child: GestureDetector(
                                     onTap: () {
                                       setState(() {
-                                        _selectedImages.removeAt(index);
+                                        // Resmi listeden çıkar ve çıkarılan değeri al
+                                        final removedImage = _selectedImages
+                                            .removeAt(index);
+                                        // Eğer silinen resim sunucudan gelmişse (http ile başlıyorsa) silinenler listesine kaydet
+                                        if (removedImage.startsWith('http')) {
+                                          _removedImagePaths.add(removedImage);
+                                        }
                                       });
+                                      _markAsChanged();
                                     },
                                     child: Container(
                                       padding: const EdgeInsets.all(4),
